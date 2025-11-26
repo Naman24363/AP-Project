@@ -210,6 +210,22 @@ public class AdminService {
     }
 
     /**
+     * Return a list of section ids for the given course.
+     */
+    public java.util.List<Integer> getSectionsForCourse(int courseId) throws SQLException {
+        java.util.List<Integer> list = new java.util.ArrayList<>();
+        String sql = "SELECT section_id FROM sections WHERE course_id = ? ORDER BY section_id";
+        try (Connection c = ErpDb.get(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, courseId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next())
+                    list.add(rs.getInt(1));
+            }
+        }
+        return list;
+    }
+
+    /**
      * Unassign the instructor from all their sections (set instructor_user_id =
      * NULL).
      * Returns the number of sections updated.
@@ -254,6 +270,50 @@ public class AdminService {
             int affected = ps.executeUpdate();
             if (affected == 0)
                 throw new RuntimeException("Section not found.");
+        }
+    }
+
+    /**
+     * Delete all sections for a given course. Prevents deletion if any section has
+     * enrollments.
+     * Returns the number of sections deleted.
+     */
+    public int deleteSectionsForCourse(Session s, int courseId) throws SQLException {
+        AccessControl.mustBeAdmin(s);
+        // prevent deleting sections with enrollments
+        try (Connection c = ErpDb.get();
+                PreparedStatement ps = c.prepareStatement(
+                        "SELECT COUNT(*) FROM enrollments WHERE section_id IN (SELECT section_id FROM sections WHERE course_id = ?)")) {
+            ps.setInt(1, courseId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next() && rs.getInt(1) > 0) {
+                    throw new RuntimeException("Cannot delete sections with enrollments. Remove enrollments first.");
+                }
+            }
+        }
+
+        // get all section ids for this course
+        java.util.List<Integer> sectionIds = getSectionsForCourse(courseId);
+        if (sectionIds.isEmpty()) {
+            return 0;
+        }
+
+        // delete per-section settings for all sections
+        try (Connection c = ErpDb.get()) {
+            for (Integer sectionId : sectionIds) {
+                String key = "weights_section_" + sectionId;
+                try (PreparedStatement ps = c.prepareStatement("DELETE FROM settings WHERE key = ?")) {
+                    ps.setString(1, key);
+                    ps.executeUpdate();
+                }
+            }
+        }
+
+        // delete all sections for this course
+        try (Connection c = ErpDb.get();
+                PreparedStatement ps = c.prepareStatement("DELETE FROM sections WHERE course_id = ?")) {
+            ps.setInt(1, courseId);
+            return ps.executeUpdate();
         }
     }
 
