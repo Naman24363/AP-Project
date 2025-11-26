@@ -172,13 +172,13 @@ public class LoginFrame extends JFrame {
 
         BackgroundPanel() {
             try {
-                // First try a user-specified absolute path (your provided JPG file)
-                File userJpg = new File("C:\\Users\\prate\\OneDrive\\Pictures\\unnamed.jpg");
-                if (userJpg.exists()) {
+                // Try the image from the root directory
+                File rootImage = new File("WhatsApp Image 2025-11-26 at 19.23.27_9b7e1506.jpg");
+                if (rootImage.exists()) {
                     try {
-                        bgImage = ImageIO.read(userJpg);
+                        bgImage = ImageIO.read(rootImage);
                         if (bgImage != null)
-                            System.out.println("LoginFrame: loaded background from " + userJpg.getAbsolutePath());
+                            System.out.println("LoginFrame: loaded background from " + rootImage.getAbsolutePath());
                     } catch (IOException ignore) {
                         bgImage = null;
                     }
@@ -219,7 +219,7 @@ public class LoginFrame extends JFrame {
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             if (bgImage != null) {
-                // Draw the image scaled to fill the panel
+                // Draw the image stretched to fill the entire panel
                 g.drawImage(bgImage, 0, 0, getWidth(), getHeight(), this);
             } else {
                 // Visible debug hint so you know loading failed
@@ -235,7 +235,7 @@ public class LoginFrame extends JFrame {
                 g2.drawString(msg, x, y);
                 g2.dispose();
                 System.out.println(
-                        "LoginFrame: background image not loaded (looked for C:\\Users\\prate\\OneDrive\\Pictures\\unnamed.jpg, C:\\Users\\prate\\Downloads\\unnamed.webp, and resources/classpath).\n");
+                        "LoginFrame: background image not loaded (looked for WhatsApp Image 2025-11-26 at 19.23.27_9b7e1506.jpg and resources/classpath).\n");
             }
         }
     }
