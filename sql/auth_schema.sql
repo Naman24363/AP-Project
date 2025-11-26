@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS users_auth;
+CREATE TABLE users_auth (
+  user_id INTEGER PRIMARY KEY,
+  username VARCHAR(50) UNIQUE NOT NULL,
+  role VARCHAR(20) NOT NULL CHECK (role IN ('ADMIN','INSTRUCTOR','STUDENT')),
+  password_hash TEXT NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+  last_login TIMESTAMP
+);
