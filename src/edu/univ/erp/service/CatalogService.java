@@ -71,6 +71,18 @@ public class CatalogService {
             String uname = instr != null ? names.getOrDefault(instr, "Unassigned") : "Unassigned";
             m.addRow(new Object[] { r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], uname });
         }
+
+        // Also include courses that have no sections yet so they appear in the catalog
+        String sqlNoSections = "SELECT course_id, code, title, credits FROM courses WHERE course_id NOT IN (SELECT DISTINCT course_id FROM sections) ORDER BY code";
+        try (Connection c = ErpDb.get();
+                Statement st = c.createStatement();
+                ResultSet rs = st.executeQuery(sqlNoSections)) {
+            while (rs.next()) {
+                // section_id empty, day/time/room empty, capacity/enrolled/available zero
+                m.addRow(new Object[] { "", rs.getString(2), rs.getString(3), rs.getInt(4), "", "", 0, 0, 0,
+                        "Unassigned" });
+            }
+        }
         return m;
     }
 

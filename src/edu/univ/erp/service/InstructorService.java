@@ -2,7 +2,10 @@ package edu.univ.erp.service;
 
 import edu.univ.erp.access.AccessControl;
 import edu.univ.erp.auth.Session;
+import edu.univ.erp.data.AuthDb;
 import edu.univ.erp.data.ErpDb;
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.sql.*;
 import java.util.*;
@@ -56,7 +59,7 @@ public class InstructorService {
     /**
      * Get roster for a section with all grades.
      */
-    public DefaultTableModel roster(int sectionId) throws SQLException {
+    public DefaultTableModel roster(Session s, int sectionId) throws SQLException {
         String[] cols = { "Enrollment ID", "Student ID", "Roll No", "Quiz", "Midterm", "EndSem", "Final" };
         DefaultTableModel m = new DefaultTableModel(cols, 0) {
             @Override
@@ -64,6 +67,10 @@ public class InstructorService {
                 return false;
             }
         };
+
+        // enforce access: only instructor of this section or admin
+        int instrId = findInstructorOf(sectionId);
+        AccessControl.mustBeInstructorOf(s, instrId);
 
         String sql = "SELECT e.enrollment_id, e.student_user_id, s.roll_no, " +
                 "MAX(CASE WHEN g.component='QUIZ' THEN g.score END) AS quiz, " +
@@ -121,15 +128,112 @@ public class InstructorService {
                     insertScore(c, enrollmentId, "ENDSEM", endsem);
                 }
 
-                // Calculate final grade using weights: 20% quiz, 30% midterm, 50% endsem
+                // Calculate final grade using stored weights (percentages)
+                double[] weights = getWeights(sectionId); // returns fractions summing to 1.0
                 double q = quiz != null ? quiz : 0;
                 double m = midterm != null ? midterm : 0;
                 double e = endsem != null ? endsem : 0;
-                double finalGrade = Math.round((0.2 * q + 0.3 * m + 0.5 * e) * 100.0) / 100.0;
+                double finalGrade = Math.round((weights[0] * q + weights[1] * m + weights[2] * e) * 100.0) / 100.0;
 
                 deleteFinalGrade(c, enrollmentId);
                 insertFinalGrade(c, enrollmentId, finalGrade);
 
+                c.commit();
+            } catch (Exception ex) {
+                c.rollback();
+                throw ex;
+            } finally {
+                c.setAutoCommit(true);
+            }
+        }
+    }
+
+    /**
+     * Retrieve weight fractions for a section. Returns {quiz, midterm, endsem} as
+     * fractions (sum to 1.0).
+     * If no custom weights found, returns default 0.2,0.3,0.5
+     */
+    public double[] getWeights(int sectionId) {
+        String key = "weights_section_" + sectionId;
+        String sql = "SELECT value FROM settings WHERE key = ?";
+        try (Connection c = ErpDb.get(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, key);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String v = rs.getString(1);
+                    // expected format: "q,m,e" as integers or decimals representing percentages
+                    String[] parts = v.split(",");
+                    if (parts.length == 3) {
+                        double q = Double.parseDouble(parts[0]) / 100.0;
+                        double m = Double.parseDouble(parts[1]) / 100.0;
+                        double e = Double.parseDouble(parts[2]) / 100.0;
+                        double sum = q + m + e;
+                        if (sum > 0) {
+                            return new double[] { q / sum, m / sum, e / sum };
+                        }
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            System.err.println("Could not read weights for section " + sectionId + ": " + ex.getMessage());
+        }
+        return new double[] { 0.2, 0.3, 0.5 };
+    }
+
+    /**
+     * Persist weights (percent integers) for a section. Must be called by an
+     * instructor or admin.
+     */
+    public void setWeights(Session s, int sectionId, int qPercent, int mPercent, int ePercent) throws SQLException {
+        AccessControl.mustAllowWrite(s.role);
+        int instructorUserId = findInstructorOf(sectionId);
+        AccessControl.mustBeInstructorOf(s, instructorUserId);
+
+        String key = "weights_section_" + sectionId;
+        String sql = "INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value";
+        try (Connection c = ErpDb.get(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, key);
+            ps.setString(2, qPercent + "," + mPercent + "," + ePercent);
+            ps.executeUpdate();
+        }
+        // After updating weights, recompute finals for enrolled students
+        recomputeFinals(s, sectionId);
+    }
+
+    /**
+     * Recompute FINAL component for all enrollments in a section using stored
+     * weights.
+     */
+    public void recomputeFinals(Session s, int sectionId) throws SQLException {
+        AccessControl.mustAllowWrite(s.role);
+        int instructorUserId = findInstructorOf(sectionId);
+        AccessControl.mustBeInstructorOf(s, instructorUserId);
+
+        String sql = "SELECT e.enrollment_id, " +
+                "MAX(CASE WHEN g.component='QUIZ' THEN g.score END) AS quiz, " +
+                "MAX(CASE WHEN g.component='MIDTERM' THEN g.score END) AS midterm, " +
+                "MAX(CASE WHEN g.component='ENDSEM' THEN g.score END) AS endsem " +
+                "FROM enrollments e " +
+                "LEFT JOIN grades g ON e.enrollment_id = g.enrollment_id " +
+                "WHERE e.section_id = ? GROUP BY e.enrollment_id";
+
+        double[] weights = getWeights(sectionId);
+        try (Connection c = ErpDb.get()) {
+            c.setAutoCommit(false);
+            try (PreparedStatement ps = c.prepareStatement(sql)) {
+                ps.setInt(1, sectionId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        int enrollmentId = rs.getInt(1);
+                        double q = rs.getObject(2) != null ? rs.getDouble(2) : 0.0;
+                        double m = rs.getObject(3) != null ? rs.getDouble(3) : 0.0;
+                        double e = rs.getObject(4) != null ? rs.getDouble(4) : 0.0;
+                        double finalGrade = Math.round((weights[0] * q + weights[1] * m + weights[2] * e) * 100.0)
+                                / 100.0;
+                        deleteFinalGrade(c, enrollmentId);
+                        insertFinalGrade(c, enrollmentId, finalGrade);
+                    }
+                }
                 c.commit();
             } catch (Exception ex) {
                 c.rollback();
@@ -193,7 +297,11 @@ public class InstructorService {
     /**
      * Get class statistics (average, min, max for final grades).
      */
-    public DefaultTableModel classStats(int sectionId) throws SQLException {
+    public DefaultTableModel classStats(Session s, int sectionId) throws SQLException {
+        // enforce access
+        int instructorUserId = findInstructorOf(sectionId);
+        AccessControl.mustBeInstructorOf(s, instructorUserId);
+
         String[] cols = { "Statistic", "Value" };
         DefaultTableModel m = new DefaultTableModel(cols, 0) {
             @Override
@@ -230,7 +338,10 @@ public class InstructorService {
     /**
      * Export grades as CSV file.
      */
-    public void exportGradesCsv(int sectionId, String filePath) throws Exception {
+    public void exportGradesCsv(Session s, int sectionId, String filePath) throws Exception {
+        int instructorUserId = findInstructorOf(sectionId);
+        AccessControl.mustBeInstructorOf(s, instructorUserId);
+
         // Avoid joining users_auth from ERP DB. Fetch student IDs and roll numbers,
         // then resolve usernames from Auth DB before writing CSV.
         String sql = "SELECT s.user_id, s.roll_no, " +
@@ -280,5 +391,255 @@ public class InstructorService {
                         (r[5] != null ? r[5].toString() : "") + "\n");
             }
         }
+    }
+
+    /**
+     * Import grades from a CSV file. Expected header containing either 'Roll No' or
+     * 'Username',
+     * and columns 'Quiz','Midterm','EndSem' (case-insensitive). Returns list of
+     * status messages
+     * (one per input row) describing success or error for that row.
+     */
+    public java.util.List<String> importGradesCsv(Session s, int sectionId, String filePath) throws Exception {
+        int instructorUserId = findInstructorOf(sectionId);
+        AccessControl.mustBeInstructorOf(s, instructorUserId);
+        AccessControl.mustAllowWrite(s.role);
+
+        java.util.List<String> results = new java.util.ArrayList<>();
+
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            String header = br.readLine();
+            if (header == null)
+                throw new RuntimeException("Empty CSV file");
+
+            java.util.List<String> headers = parseCsvLine(header);
+            int idxRoll = -1, idxUser = -1, idxQuiz = -1, idxMid = -1, idxEnd = -1;
+            for (int i = 0; i < headers.size(); i++) {
+                String h = headers.get(i).trim().toLowerCase();
+                if (h.equals("roll no") || h.equals("roll") || h.equals("roll_no"))
+                    idxRoll = i;
+                if (h.equals("username"))
+                    idxUser = i;
+                if (h.equals("quiz"))
+                    idxQuiz = i;
+                if (h.equals("midterm") || h.equals("mid"))
+                    idxMid = i;
+                if (h.equals("endsem") || h.equals("end_sem") || h.equals("end sem") || h.equals("end"))
+                    idxEnd = i;
+            }
+
+            if (idxQuiz == -1 && idxMid == -1 && idxEnd == -1)
+                throw new RuntimeException("CSV must contain at least one of Quiz/Midterm/EndSem columns");
+
+            String line;
+            int lineno = 1;
+            while ((line = br.readLine()) != null) {
+                lineno++;
+                java.util.List<String> parts = parseCsvLine(line);
+                try {
+                    String roll = idxRoll != -1 && idxRoll < parts.size() ? parts.get(idxRoll).trim() : "";
+                    String uname = idxUser != -1 && idxUser < parts.size() ? parts.get(idxUser).trim() : "";
+
+                    Integer studentUserId = null;
+                    if (!roll.isEmpty()) {
+                        try (Connection c = ErpDb.get();
+                                PreparedStatement ps = c
+                                        .prepareStatement("SELECT user_id FROM students WHERE roll_no = ?")) {
+                            ps.setString(1, roll);
+                            try (ResultSet rs = ps.executeQuery()) {
+                                if (rs.next())
+                                    studentUserId = rs.getInt(1);
+                            }
+                        }
+                    }
+                    if (studentUserId == null && !uname.isEmpty()) {
+                        try (Connection c = AuthDb.get();
+                                PreparedStatement ps = c
+                                        .prepareStatement("SELECT user_id FROM users_auth WHERE username = ?")) {
+                            ps.setString(1, uname);
+                            try (ResultSet rs = ps.executeQuery()) {
+                                if (rs.next())
+                                    studentUserId = rs.getInt(1);
+                            }
+                        }
+                    }
+
+                    if (studentUserId == null) {
+                        results.add("Line " + lineno + ": student not found (roll='" + roll + "' username='" + uname
+                                + "')");
+                        continue;
+                    }
+
+                    // find enrollment
+                    Integer enrollmentId = null;
+                    try (Connection c = ErpDb.get();
+                            PreparedStatement ps = c.prepareStatement(
+                                    "SELECT enrollment_id FROM enrollments WHERE student_user_id = ? AND section_id = ?")) {
+                        ps.setInt(1, studentUserId);
+                        ps.setInt(2, sectionId);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next())
+                                enrollmentId = rs.getInt(1);
+                        }
+                    }
+
+                    if (enrollmentId == null) {
+                        results.add("Line " + lineno + ": student not enrolled in section");
+                        continue;
+                    }
+
+                    Double quiz = idxQuiz != -1 && idxQuiz < parts.size() && !parts.get(idxQuiz).trim().isEmpty()
+                            ? Double.valueOf(parts.get(idxQuiz).trim())
+                            : null;
+                    Double mid = idxMid != -1 && idxMid < parts.size() && !parts.get(idxMid).trim().isEmpty()
+                            ? Double.valueOf(parts.get(idxMid).trim())
+                            : null;
+                    Double end = idxEnd != -1 && idxEnd < parts.size() && !parts.get(idxEnd).trim().isEmpty()
+                            ? Double.valueOf(parts.get(idxEnd).trim())
+                            : null;
+
+                    // validate ranges if provided
+                    if ((quiz != null && (quiz < 0 || quiz > 100)) || (mid != null && (mid < 0 || mid > 100))
+                            || (end != null && (end < 0 || end > 100))) {
+                        results.add("Line " + lineno + ": invalid score (must be 0-100)");
+                        continue;
+                    }
+
+                    // call saveScores to persist and compute final
+                    saveScores(s, sectionId, enrollmentId, quiz, mid, end);
+                    results.add("Line " + lineno + ": OK");
+                } catch (Exception ex) {
+                    results.add("Line " + lineno + ": error: " + ex.getMessage());
+                }
+            }
+        }
+
+        return results;
+    }
+
+    private java.util.List<String> parseCsvLine(String line) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (line == null)
+            return out;
+        StringBuilder cur = new StringBuilder();
+        boolean inQuotes = false;
+        for (int i = 0; i < line.length(); i++) {
+            char ch = line.charAt(i);
+            if (inQuotes) {
+                if (ch == '"') {
+                    if (i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                        cur.append('"');
+                        i++;
+                    } else {
+                        inQuotes = false;
+                    }
+                } else {
+                    cur.append(ch);
+                }
+            } else {
+                if (ch == '"') {
+                    inQuotes = true;
+                } else if (ch == ',') {
+                    out.add(cur.toString());
+                    cur.setLength(0);
+                } else {
+                    cur.append(ch);
+                }
+            }
+        }
+        out.add(cur.toString());
+        return out;
+    }
+
+    /**
+     * Preview CSV import: parse rows and resolve student/enrollment info but do not
+     * persist.
+     * Returns rows as String[]: {Roll, Username, StudentId, Enrolled(YES/NO), Quiz,
+     * Midterm, EndSem, Error}
+     */
+    public java.util.List<String[]> previewGradesCsv(Session s, int sectionId, String filePath) throws Exception {
+        int instructorUserId = findInstructorOf(sectionId);
+        AccessControl.mustBeInstructorOf(s, instructorUserId);
+
+        java.util.List<String[]> out = new java.util.ArrayList<>();
+
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            String header = br.readLine();
+            if (header == null)
+                throw new RuntimeException("Empty CSV file");
+
+            java.util.List<String> headers = parseCsvLine(header);
+            int idxRoll = -1, idxUser = -1, idxQuiz = -1, idxMid = -1, idxEnd = -1;
+            for (int i = 0; i < headers.size(); i++) {
+                String h = headers.get(i).trim().toLowerCase();
+                if (h.equals("roll no") || h.equals("roll") || h.equals("roll_no"))
+                    idxRoll = i;
+                if (h.equals("username"))
+                    idxUser = i;
+                if (h.equals("quiz"))
+                    idxQuiz = i;
+                if (h.equals("midterm") || h.equals("mid"))
+                    idxMid = i;
+                if (h.equals("endsem") || h.equals("end_sem") || h.equals("end sem") || h.equals("end"))
+                    idxEnd = i;
+            }
+
+            String line;
+            while ((line = br.readLine()) != null) {
+                java.util.List<String> parts = parseCsvLine(line);
+                String roll = idxRoll != -1 && idxRoll < parts.size() ? parts.get(idxRoll).trim() : "";
+                String uname = idxUser != -1 && idxUser < parts.size() ? parts.get(idxUser).trim() : "";
+                String quizS = idxQuiz != -1 && idxQuiz < parts.size() ? parts.get(idxQuiz).trim() : "";
+                String midS = idxMid != -1 && idxMid < parts.size() ? parts.get(idxMid).trim() : "";
+                String endS = idxEnd != -1 && idxEnd < parts.size() ? parts.get(idxEnd).trim() : "";
+
+                String studentIdStr = "";
+                String enrolled = "NO";
+                String err = "";
+
+                Integer studentUserId = null;
+                if (!roll.isEmpty()) {
+                    try (Connection c = ErpDb.get();
+                            PreparedStatement ps = c
+                                    .prepareStatement("SELECT user_id FROM students WHERE roll_no = ?")) {
+                        ps.setString(1, roll);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next())
+                                studentUserId = rs.getInt(1);
+                        }
+                    }
+                }
+                if (studentUserId == null && !uname.isEmpty()) {
+                    try (Connection c = AuthDb.get();
+                            PreparedStatement ps = c
+                                    .prepareStatement("SELECT user_id FROM users_auth WHERE username = ?")) {
+                        ps.setString(1, uname);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next())
+                                studentUserId = rs.getInt(1);
+                        }
+                    }
+                }
+
+                if (studentUserId == null) {
+                    err = "student not found";
+                } else {
+                    studentIdStr = String.valueOf(studentUserId);
+                    try (Connection c = ErpDb.get();
+                            PreparedStatement ps = c.prepareStatement(
+                                    "SELECT enrollment_id FROM enrollments WHERE student_user_id = ? AND section_id = ?")) {
+                        ps.setInt(1, studentUserId);
+                        ps.setInt(2, sectionId);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next())
+                                enrolled = "YES";
+                        }
+                    }
+                }
+
+                out.add(new String[] { roll, uname, studentIdStr, enrolled, quizS, midS, endS, err });
+            }
+        }
+        return out;
     }
 }
