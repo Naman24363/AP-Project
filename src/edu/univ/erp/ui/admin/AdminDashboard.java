@@ -404,6 +404,39 @@ public class AdminDashboard extends JFrame {
                 cbDeleteCourse.addItem(c.code + " (id=" + c.courseId + ")");
         } catch (Exception ignored) {
         }
+        JButton btnDeleteSections = Ui.buttonSecondary("Delete Sections", () -> {
+            String sel = (String) cbDeleteCourse.getSelectedItem();
+            if (sel == null) {
+                Ui.msgError(this, "No course selected");
+                return;
+            }
+            int id = Integer.parseInt(sel.substring(sel.indexOf("id=") + 3, sel.indexOf(")")));
+            try {
+                java.util.List<Integer> secs = admin.getSectionsForCourse(id);
+                if (secs.isEmpty()) {
+                    Ui.msgInfo(this, "This course has no sections.");
+                    return;
+                }
+                StringBuilder sb = new StringBuilder();
+                for (Integer s : secs)
+                    sb.append(s).append(", ");
+                String list = sb.length() > 0 ? sb.substring(0, sb.length() - 2) : "";
+                int r = JOptionPane.showConfirmDialog(this,
+                        "Delete all sections for course " + sel + "?\nSections: " + list,
+                        "Confirm Delete Sections", JOptionPane.YES_NO_OPTION);
+                if (r == JOptionPane.YES_OPTION) {
+                    int deleted = admin.deleteSectionsForCourse(session, id);
+                    Ui.msgSuccess(this, "Deleted " + deleted + " section(s).");
+                    refreshCatalog();
+                    try {
+                        refreshSections();
+                    } catch (Exception ignored) {
+                    }
+                }
+            } catch (Exception ex) {
+                Ui.msgError(this, ex.getMessage());
+            }
+        });
         JButton btnDeleteCourse = Ui.buttonSecondary("Delete Course", () -> {
             String sel = (String) cbDeleteCourse.getSelectedItem();
             if (sel == null) {
@@ -433,6 +466,7 @@ public class AdminDashboard extends JFrame {
             }
         });
         inputPanel.add(cbDeleteCourse);
+        inputPanel.add(btnDeleteSections);
         inputPanel.add(btnDeleteCourse);
 
         p.add(inputPanel, BorderLayout.NORTH);
