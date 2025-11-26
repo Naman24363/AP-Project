@@ -16,6 +16,7 @@ public class StudentDashboard extends JFrame {
 
     private final JTable tblCatalog = new JTable();
     private final JTable tblRegs = new JTable();
+    private JTabbedPane tabs;
 
     public StudentDashboard(Session s) {
         this.session = s;
@@ -24,13 +25,44 @@ public class StudentDashboard extends JFrame {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        JTabbedPane tabs = new JTabbedPane();
+        JPanel mainPanel = new JPanel(new BorderLayout());
+
+        // Header with back button
+        JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        headerPanel.setBackground(new Color(41, 128, 185));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        JButton btnBack = new JButton("← Back to Dashboard");
+        btnBack.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnBack.setBackground(new Color(52, 152, 219));
+        btnBack.setForeground(Color.WHITE);
+        btnBack.setFocusPainted(false);
+        btnBack.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        btnBack.addActionListener(e -> goBackToHome());
+
+        headerPanel.add(btnBack);
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+
+        tabs = new JTabbedPane();
         tabs.add("Catalog", catalogPanel());
         tabs.add("My Registrations", regsPanel());
         tabs.add("Timetable", new TimetablePanel(s));
         tabs.add("Transcript", transcriptPanel());
-        add(tabs);
+        mainPanel.add(tabs, BorderLayout.CENTER);
+
+        add(mainPanel);
         refreshAll();
+    }
+
+    private void goBackToHome() {
+        dispose();
+        new StudentHome(session).setVisible(true);
+    }
+
+    public void selectTab(int index) {
+        if (tabs != null && index >= 0 && index < tabs.getTabCount()) {
+            tabs.setSelectedIndex(index);
+        }
     }
 
     private JPanel catalogPanel() {
