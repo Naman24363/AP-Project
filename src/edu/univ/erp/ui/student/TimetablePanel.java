@@ -50,10 +50,13 @@ public class TimetablePanel extends JPanel {
                 slotStarts[i] = parseStartMinutes(times[i]);
             }
             for (int r = 0; r < regs.getRowCount(); r++) {
-                String dayTime = (String) regs.getValueAt(r, 4); // Day/Time
-                String room = (String) regs.getValueAt(r, 5); // Room
-                String code = String.valueOf(regs.getValueAt(r, 2));
-                String title = String.valueOf(regs.getValueAt(r, 3));
+                // StudentService.myRegistrations currently returns columns:
+                // 0: Enrollment ID, 1: Instructor, 2: Section ID, 3: Code, 4: Title,
+                // 5: Day/Time, 6: Room, 7: Status
+                String dayTime = (String) regs.getValueAt(r, 5); // Day/Time
+                String room = (String) regs.getValueAt(r, 6); // Room
+                String code = String.valueOf(regs.getValueAt(r, 3));
+                String title = String.valueOf(regs.getValueAt(r, 4));
                 String display = code + " " + title + (room == null || room.isEmpty() ? "" : " (" + room + ")");
 
                 if (dayTime == null)
