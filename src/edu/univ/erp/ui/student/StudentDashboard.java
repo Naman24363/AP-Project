@@ -17,6 +17,7 @@ public class StudentDashboard extends JFrame {
     private final JTable tblCatalog = new JTable();
     private final JTable tblRegs = new JTable();
     private JTabbedPane tabs;
+    private TimetablePanel timetablePanel;
 
     public StudentDashboard(Session s) {
         this.session = s;
@@ -56,10 +57,11 @@ public class StudentDashboard extends JFrame {
         topBar.add(left, BorderLayout.WEST);
         topBar.add(btnLogout, BorderLayout.EAST);
 
+        timetablePanel = new TimetablePanel(s);
         tabs = new JTabbedPane();
         tabs.add("Catalog", catalogPanel());
         tabs.add("My Registrations", regsPanel());
-        tabs.add("Timetable", new TimetablePanel(s));
+        tabs.add("Timetable", timetablePanel);
         tabs.add("View Grades", transcriptPanel());
         tabs.add("Settings", new ChangePasswordPanel(s));
 
@@ -192,5 +194,8 @@ public class StudentDashboard extends JFrame {
     private void refreshAll() {
         refreshCatalog();
         refreshRegs();
+        if (timetablePanel != null) {
+            timetablePanel.refresh();
+        }
     }
 }

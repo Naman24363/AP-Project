@@ -686,6 +686,14 @@ public class AdminDashboard extends JFrame {
                         Ui.msgError(this, "All fields required");
                         return;
                     }
+                    // Validate Day/Time format: DayName HH:MM-HH:MM AM/PM (e.g., Monday 10:00-11:00
+                    // AM)
+                    String dayTimePattern = "(?i)^(Monday|Mon|Tuesday|Tue|Wednesday|Wed|Thursday|Thu|Friday|Fri|Saturday|Sat|Sunday|Sun)\\s+(1[0-2]|0?[1-9]):([0-5][0-9])-(1[0-2]|0?[1-9]):([0-5][0-9])\\s+(AM|PM)$";
+                    if (!day.matches(dayTimePattern)) {
+                        Ui.msgError(this,
+                                "Invalid Day/Time format.\n\nExpected format: DayName HH:MM-HH:MM AM/PM\nExample: Monday 10:00-11:00 AM or Mon 10:00-11:00 AM\n\nNote: Day names (Mon/Tue/Wed/Thu/Fri/Sat/Sun or full names) are case-insensitive.");
+                        return;
+                    }
                     if (cap < 10) {
                         Ui.msgError(this, "Capacity must be at least 10");
                         return;
