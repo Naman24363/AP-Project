@@ -4,6 +4,9 @@ import java.awt.*;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
+/**
+ * UI helper methods for creating styled components and showing dialogs.
+ */
 public class UiHelper {
     private static final Color PRIMARY = UiConstants.PRIMARY;
     private static final Color PRIMARY_DARK = UiConstants.PRIMARY_DARK;
@@ -19,12 +22,14 @@ public class UiHelper {
 
     private static void initializeLookAndFeel() {
         try {
+            // Try FlatLaf first, then fall back to Nimbus
             try {
                 UIManager.setLookAndFeel("com.formdev.flatlaf.FlatLightLaf");
             } catch (Exception ignored) {
                 UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
             }
 
+            // Configure UI defaults
             UIManager.put("Label.font", UiConstants.FONT_REGULAR);
             UIManager.put("Button.font", UiConstants.FONT_BOLD);
             UIManager.put("TextField.font", UiConstants.FONT_REGULAR);
@@ -42,6 +47,8 @@ public class UiHelper {
         }
     }
 
+    // ===== Dialog Messages =====
+
     public static void msgInfo(Component parent, String text) {
         JOptionPane.showMessageDialog(parent, text, "ℹ Information", JOptionPane.INFORMATION_MESSAGE);
     }
@@ -57,6 +64,8 @@ public class UiHelper {
     public static void msgWarning(Component parent, String text) {
         JOptionPane.showMessageDialog(parent, text, "⚠ Warning", JOptionPane.WARNING_MESSAGE);
     }
+
+    // ===== Buttons =====
 
     public static JButton button(String text, Runnable onClick) {
         JButton b = new JButton(text);
@@ -139,6 +148,8 @@ public class UiHelper {
         }
     }
 
+    // ===== Labels =====
+
     public static JLabel createLabel(String text) {
         JLabel l = new JLabel(text);
         l.setFont(UiConstants.FONT_REGULAR);
@@ -160,6 +171,8 @@ public class UiHelper {
         return l;
     }
 
+    // ===== Text Fields =====
+
     public static JTextField createTextField(int columns) {
         JTextField tf = new JTextField(columns);
         tf.setFont(UiConstants.FONT_REGULAR);
@@ -178,6 +191,8 @@ public class UiHelper {
         return pf;
     }
 
+    // ===== Panels =====
+
     public static JPanel createPanel(LayoutManager layout, Color background) {
         JPanel p = new JPanel(layout);
         p.setBackground(background);
@@ -190,6 +205,8 @@ public class UiHelper {
         p.setBorder(BorderFactory.createLineBorder(UiConstants.DIVIDER, 1));
         return p;
     }
+
+    // ===== Dialogs =====
 
     public static void showLoadingDialog(Component parent, String message) {
         JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(parent), "Loading", true);
