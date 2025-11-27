@@ -1,6 +1,7 @@
 package edu.univ.erp.ui.auth;
 
 import edu.univ.erp.auth.AuthService;
+import edu.univ.erp.auth.LoginAttemptTracker;
 import edu.univ.erp.auth.Session;
 import edu.univ.erp.ui.admin.AdminDashboard;
 import edu.univ.erp.ui.common.MaintenanceBanner;
@@ -22,6 +23,9 @@ public class LoginFrame extends JFrame {
     private final JPasswordField txtPass = Ui.createPasswordField(20);
     private final AuthService auth = new AuthService();
     private final MaintenanceBanner banner = new MaintenanceBanner();
+    private JButton btnLogin;
+    private javax.swing.Timer lockoutTimer;
+    private int lockoutCountdown = 0;
 
     public LoginFrame() {
         setTitle("University ERP - Login");
@@ -107,7 +111,7 @@ public class LoginFrame extends JFrame {
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
         buttonPanel.setBackground(Color.WHITE);
-        JButton btnLogin = Ui.button("  Login  ", this::doLogin);
+        btnLogin = Ui.button("  Login  ", this::doLogin);
         JButton btnExit = Ui.buttonSecondary("  Exit  ", this::dispose);
         buttonPanel.add(btnLogin);
         buttonPanel.add(btnExit);
@@ -218,11 +222,22 @@ public class LoginFrame extends JFrame {
             return;
         }
 
+        // Check if account is locked out
+        if (LoginAttemptTracker.isLockedOut(username)) {
+            long remainingSeconds = LoginAttemptTracker.getLockedOutSeconds(username);
+            Ui.msgError(this, "Account locked due to too many failed attempts.\nPlease try again in " + remainingSeconds
+                    + " second(s).");
+            return;
+        }
+
         try {
             System.out.println("LoginFrame: attempting login for user='" + username + "'");
             Session s = auth.login(username, password);
             System.out.println("LoginFrame: auth.login returned Session role=" + (s == null ? "<null>" : s.role));
             Session.set(s);
+
+            // Clear failed attempts on successful login
+            LoginAttemptTracker.clearAttempts(username);
 
             JFrame dash = switch (s.role) {
                 case "STUDENT" -> new StudentHome(s);
@@ -233,13 +248,46 @@ public class LoginFrame extends JFrame {
             dash.setVisible(true);
             dispose();
         } catch (Exception e) {
+            // Record failed attempt
+            int attemptCount = LoginAttemptTracker.recordFailedAttempt(username);
+
             String msg = e.getMessage();
             System.err.println("LoginFrame: login failed: " + msg);
             e.printStackTrace(System.err);
-            Ui.msgError(this, msg == null ? "Login failed (see console)" : msg);
+
+            // Build error message with attempt count
+            String errorMsg = msg == null ? "Login failed (see console)" : msg;
+            if (attemptCount >= 5) {
+                errorMsg += "\n\nYou have reached the maximum login attempts.\nLogin is locked for 15 seconds.";
+                startLockoutTimer();
+            } else {
+                errorMsg += "\n\nYou have wrongly logged in " + attemptCount + " time(s). (Max: 5)";
+            }
+
+            Ui.msgError(this, errorMsg);
             txtPass.setText("");
             txtUser.requestFocus();
         }
+    }
+
+    private void startLockoutTimer() {
+        btnLogin.setEnabled(false);
+        lockoutCountdown = 15; // 15 seconds
+
+        lockoutTimer = new javax.swing.Timer(1000, e -> {
+            if (lockoutCountdown > 0) {
+                btnLogin.setText("  Login  (" + lockoutCountdown + "s)");
+                lockoutCountdown--;
+            } else {
+                btnLogin.setText("  Login  ");
+                btnLogin.setEnabled(true);
+                if (lockoutTimer != null) {
+                    lockoutTimer.stop();
+                }
+            }
+        });
+        lockoutTimer.setInitialDelay(0);
+        lockoutTimer.start();
     }
 
     @Override
