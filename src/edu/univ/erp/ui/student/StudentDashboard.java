@@ -122,8 +122,13 @@ public class StudentDashboard extends JFrame {
                 Ui.msgError(this, "Select a registration.");
                 return;
             }
-            int enrollmentId = (int) tblRegs.getValueAt(r, 0);
             try {
+                // The table model keeps the internal enrollment_id as the first column
+                // but we remove that column from the view. Use model index conversion
+                // to fetch the enrollment id safely even when columns are hidden/sorted.
+                javax.swing.table.DefaultTableModel model = (javax.swing.table.DefaultTableModel) tblRegs.getModel();
+                int modelRow = tblRegs.convertRowIndexToModel(r);
+                int enrollmentId = (int) model.getValueAt(modelRow, 0);
                 student.drop(session, enrollmentId);
                 Ui.msgInfo(this, "Dropped.");
                 refreshAll();
@@ -177,7 +182,19 @@ public class StudentDashboard extends JFrame {
 
     private void refreshRegs() {
         try {
-            tblRegs.setModel(student.myRegistrations(session.userId));
+            javax.swing.table.DefaultTableModel m = student.myRegistrations(session.userId);
+            tblRegs.setModel(m);
+            // hide the internal enrollment id column (column 0 in the model)
+            try {
+                // If the first column is still visible in the view, remove it so users
+                // see 'Instructor' as the first visible column.
+                javax.swing.table.TableColumn col0 = tblRegs.getColumnModel().getColumn(0);
+                if ("Enrollment ID".equals(col0.getHeaderValue())) {
+                    tblRegs.removeColumn(col0);
+                }
+            } catch (Exception ex) {
+                // ignore if column already removed or inaccessible
+            }
         } catch (SQLException e) {
             Ui.msgError(this, e.getMessage());
         }

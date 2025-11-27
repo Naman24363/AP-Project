@@ -82,7 +82,7 @@ public class StudentHome extends JFrame {
         JButton bRegs = Ui.tileButton("My Registrations", this::openRegistrations);
         JButton bTime = Ui.tileButton("My Timetable", this::openTimetable);
         JButton bGrades = Ui.tileButton("My Grades", this::openGrades);
-        JButton bTrans = Ui.tileButton("Transcript", this::openTranscript);
+        JButton bTrans = Ui.tileButton("View Grades", this::openTranscript);
         JButton bSettings = Ui.tileButton("Settings", this::openSettings);
 
         Dimension smallTile = new Dimension(300, 140);
@@ -131,14 +131,14 @@ public class StudentHome extends JFrame {
 
     private void openGrades() {
         StudentDashboard dash = new StudentDashboard(session);
-        dash.selectTab(3); // Transcript tab
+        dash.selectTab(3); // View Grades tab
         dash.setVisible(true);
         dispose();
     }
 
     private void openTranscript() {
         StudentDashboard dash = new StudentDashboard(session);
-        dash.selectTab(3); // Transcript tab
+        dash.selectTab(3); // View Grades tab
         dash.setVisible(true);
         dispose();
     }
