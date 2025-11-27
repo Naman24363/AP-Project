@@ -27,27 +27,44 @@ public class StudentDashboard extends JFrame {
 
         JPanel mainPanel = new JPanel(new BorderLayout());
 
-        // Header with back button
-        JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        headerPanel.setBackground(new Color(41, 128, 185));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        // Top header (welcome + subtitle + logout) to match instructor style
+        JPanel topBar = new JPanel(new BorderLayout());
+        topBar.setBackground(new Color(41, 128, 185));
+        topBar.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
 
-        JButton btnBack = new JButton("← Back to Dashboard");
-        btnBack.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        btnBack.setBackground(new Color(52, 152, 219));
-        btnBack.setForeground(Color.WHITE);
-        btnBack.setFocusPainted(false);
-        btnBack.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
-        btnBack.addActionListener(e -> goBackToHome());
+        JPanel left = new JPanel(new GridLayout(2, 1));
+        left.setOpaque(false);
+        JLabel lblWelcome = new JLabel("Welcome, " + s.username);
+        lblWelcome.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        lblWelcome.setForeground(Color.WHITE);
+        left.add(lblWelcome);
+        JLabel lblSub = new JLabel("Student Dashboard");
+        lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblSub.setForeground(new Color(200, 230, 250));
+        left.add(lblSub);
 
-        headerPanel.add(btnBack);
-        mainPanel.add(headerPanel, BorderLayout.NORTH);
+        JButton btnLogout = new JButton("Logout");
+        btnLogout.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnLogout.setBackground(new Color(244, 81, 30));
+        btnLogout.setForeground(Color.WHITE);
+        btnLogout.setFocusPainted(false);
+        btnLogout.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        btnLogout.addActionListener(e -> {
+            dispose();
+            new edu.univ.erp.ui.auth.LoginFrame().setVisible(true);
+        });
+
+        topBar.add(left, BorderLayout.WEST);
+        topBar.add(btnLogout, BorderLayout.EAST);
 
         tabs = new JTabbedPane();
         tabs.add("Catalog", catalogPanel());
         tabs.add("My Registrations", regsPanel());
         tabs.add("Timetable", new TimetablePanel(s));
-        tabs.add("Transcript", transcriptPanel());
+        tabs.add("View Grades", transcriptPanel());
+        tabs.add("Settings", new ChangePasswordPanel(s));
+
+        mainPanel.add(topBar, BorderLayout.NORTH);
         mainPanel.add(tabs, BorderLayout.CENTER);
 
         add(mainPanel);
@@ -64,6 +81,9 @@ public class StudentDashboard extends JFrame {
             tabs.setSelectedIndex(index);
         }
     }
+
+    // Removed studentLandingPanel: students will now see Catalog as the first tab
+    // after login.
 
     private JPanel catalogPanel() {
         JPanel p = new JPanel(new BorderLayout());

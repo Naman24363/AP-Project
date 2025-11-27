@@ -274,6 +274,39 @@ public class AdminService {
     }
 
     /**
+     * Remove all enrollments (and their grades) for a given section.
+     * Returns the number of enrollments deleted.
+     */
+    public int removeEnrollmentsForSection(Session s, int sectionId) throws SQLException {
+        AccessControl.mustBeAdmin(s);
+        try (Connection c = ErpDb.get()) {
+            boolean old = c.getAutoCommit();
+            c.setAutoCommit(false);
+            try {
+                // delete grades tied to enrollments in this section
+                try (PreparedStatement ps = c.prepareStatement(
+                        "DELETE FROM grades WHERE enrollment_id IN (SELECT enrollment_id FROM enrollments WHERE section_id = ?)")) {
+                    ps.setInt(1, sectionId);
+                    ps.executeUpdate();
+                }
+
+                // delete enrollments for the section
+                try (PreparedStatement ps = c.prepareStatement("DELETE FROM enrollments WHERE section_id = ?")) {
+                    ps.setInt(1, sectionId);
+                    int removed = ps.executeUpdate();
+                    c.commit();
+                    return removed;
+                }
+            } catch (SQLException ex) {
+                c.rollback();
+                throw ex;
+            } finally {
+                c.setAutoCommit(old);
+            }
+        }
+    }
+
+    /**
      * Delete all sections for a given course. Prevents deletion if any section has
      * enrollments.
      * Returns the number of sections deleted.
@@ -358,6 +391,38 @@ public class AdminService {
             } finally {
                 c.setAutoCommit(oldAuto);
             }
+        }
+    }
+
+    /**
+     * Verify current password for the session's user.
+     */
+    public boolean verifyCurrentPassword(Session s, String oldPassword) throws SQLException {
+        String sql = "SELECT password_hash FROM users_auth WHERE user_id = ?";
+        try (Connection c = AuthDb.get(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, s.userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String hash = rs.getString(1);
+                    return edu.univ.erp.auth.PasswordHasher.verify(oldPassword, hash);
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Change password for the session's user.
+     */
+    public void changePassword(Session s, String newPassword) throws SQLException {
+        AccessControl.mustBeAdmin(s);
+        String newHash = edu.univ.erp.auth.PasswordHasher.hash(newPassword);
+        try (Connection c = AuthDb.get();
+                PreparedStatement ps = c.prepareStatement(
+                        "UPDATE users_auth SET password_hash = ? WHERE user_id = ?")) {
+            ps.setString(1, newHash);
+            ps.setInt(2, s.userId);
+            ps.executeUpdate();
         }
     }
 }

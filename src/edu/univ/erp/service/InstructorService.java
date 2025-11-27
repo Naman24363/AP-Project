@@ -310,7 +310,7 @@ public class InstructorService {
             }
         };
 
-        String sql = "SELECT COUNT(*) AS total, " +
+        String sql = "SELECT COUNT(DISTINCT e.enrollment_id) AS total, " +
                 "ROUND(AVG(CASE WHEN g.component='FINAL' THEN g.final_grade END)::numeric, 2) AS avg_final, " +
                 "ROUND(MIN(CASE WHEN g.component='FINAL' THEN g.final_grade END)::numeric, 2) AS min_final, " +
                 "ROUND(MAX(CASE WHEN g.component='FINAL' THEN g.final_grade END)::numeric, 2) AS max_final " +

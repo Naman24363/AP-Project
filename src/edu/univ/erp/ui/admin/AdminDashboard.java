@@ -4,6 +4,7 @@ import edu.univ.erp.auth.Session;
 import edu.univ.erp.service.AdminService;
 import edu.univ.erp.service.CatalogService;
 import edu.univ.erp.service.MaintenanceService;
+import edu.univ.erp.ui.auth.LoginFrame;
 import edu.univ.erp.util.Ui;
 import java.awt.*;
 import java.sql.SQLException;
@@ -15,6 +16,7 @@ public class AdminDashboard extends JFrame {
     private final AdminService admin = new AdminService();
     private final CatalogService catalog = new CatalogService();
     private final MaintenanceService maintenance = new MaintenanceService();
+    private final JTabbedPane tabs;
     private final JTable tblCatalog = new JTable();
     // shared UI components for live refresh
     private final JComboBox<String> cbInstForSection = new JComboBox<>();
@@ -31,13 +33,200 @@ public class AdminDashboard extends JFrame {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        JTabbedPane tabs = new JTabbedPane();
+        // Top header similar to student dashboard
+        JPanel topBar = new JPanel(new BorderLayout());
+        topBar.setBackground(new Color(41, 128, 185));
+        topBar.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
+
+        JPanel left = new JPanel(new GridLayout(2, 1));
+        left.setOpaque(false);
+        JLabel lblWelcome = new JLabel("Welcome, " + s.username);
+        lblWelcome.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        lblWelcome.setForeground(Color.WHITE);
+        left.add(lblWelcome);
+        JLabel lblSub = new JLabel("Admin Dashboard");
+        lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblSub.setForeground(new Color(200, 230, 250));
+        left.add(lblSub);
+
+        // Logout button on right
+        JButton btnLogout = new JButton("Logout");
+        btnLogout.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnLogout.setBackground(new Color(244, 81, 30));
+        btnLogout.setForeground(Color.WHITE);
+        btnLogout.setFocusPainted(false);
+        btnLogout.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        btnLogout.addActionListener(e -> {
+            dispose();
+            new LoginFrame().setVisible(true);
+        });
+
+        topBar.add(left, BorderLayout.WEST);
+        topBar.add(btnLogout, BorderLayout.EAST);
+
+        this.tabs = new JTabbedPane();
+        tabs.add("Dashboard", adminLandingPanel());
         tabs.add("Maintenance", maintenancePanel());
         tabs.add("Users", usersPanel());
         tabs.add("Courses", coursesPanel());
         tabs.add("Sections", sectionsPanel());
         tabs.add("Catalog", catalogPanel());
-        add(tabs);
+
+        JPanel main = new JPanel(new BorderLayout());
+        main.add(topBar, BorderLayout.NORTH);
+        main.add(tabs, BorderLayout.CENTER);
+        add(main);
+        // Ensure sections list is populated on startup
+        refreshSections();
+    }
+
+    private JPanel adminLandingPanel() {
+        JPanel p = new JPanel(new BorderLayout());
+        JPanel grid = new JPanel(new GridLayout(2, 3, 16, 16));
+        grid.setOpaque(false);
+        grid.setBorder(new EmptyBorder(8, 8, 8, 8));
+
+        // Header similar to Student dashboard: title + short description
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBorder(new EmptyBorder(10, 20, 0, 20));
+        JLabel title = Ui.createLabelBold("Admin Dashboard");
+        JLabel subtitle = Ui.createLabel("Administrative quick actions and management");
+        title.setHorizontalAlignment(SwingConstants.LEFT);
+        subtitle.setHorizontalAlignment(SwingConstants.LEFT);
+        header.add(title, BorderLayout.NORTH);
+        header.add(subtitle, BorderLayout.SOUTH);
+        p.add(header, BorderLayout.NORTH);
+
+        java.util.function.Consumer<String> openTab = (name) -> {
+            // select the tab in the dashboard's tab pane by title
+            if (AdminDashboard.this.tabs == null)
+                return;
+            for (int i = 0; i < AdminDashboard.this.tabs.getTabCount(); i++) {
+                if (AdminDashboard.this.tabs.getTitleAt(i).equalsIgnoreCase(name)) {
+                    AdminDashboard.this.tabs.setSelectedIndex(i);
+                    return;
+                }
+            }
+        };
+
+        // Admin-focused tiles (Create/Edit Users, Create/Edit Courses, Create
+        // Sections, Maintenance, Catalog, Settings) - make them smaller and
+        // contained in a white card for a cleaner look
+        JButton bUsers = Ui.tileButton("Create/Edit Users", () -> openTab.accept("Users"));
+        JButton bCourses = Ui.tileButton("Create/Edit Courses", () -> openTab.accept("Courses"));
+        JButton bSections = Ui.tileButton("Create Sections", () -> openTab.accept("Sections"));
+        JButton bMaint = Ui.tileButton("Maintenance", () -> openTab.accept("Maintenance"));
+        JButton bCatalog = Ui.tileButton("Catalog", () -> openTab.accept("Catalog"));
+        JButton bSettings = Ui.tileButton("Settings", this::showChangePasswordDialog);
+
+        // reduce size for admin landing compact layout
+        Dimension smallTile = new Dimension(140, 84);
+        bUsers.setPreferredSize(smallTile);
+        bCourses.setPreferredSize(smallTile);
+        bSections.setPreferredSize(smallTile);
+        bMaint.setPreferredSize(smallTile);
+        bCatalog.setPreferredSize(smallTile);
+        bSettings.setPreferredSize(smallTile);
+
+        grid.add(bUsers);
+        grid.add(bCourses);
+        grid.add(bSections);
+        grid.add(bMaint);
+        grid.add(bCatalog);
+        grid.add(bSettings);
+
+        // Put tiles inside a white card with padding and a subtle border
+        JPanel card = Ui.createPanel(new BorderLayout(), Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0, 0, 0, 30), 1),
+                new EmptyBorder(18, 18, 18, 18)));
+        card.add(grid, BorderLayout.CENTER);
+
+        // Center the card and add slight margin from header
+        JPanel centerWrap = new JPanel(new GridBagLayout());
+        centerWrap.setBackground(Ui.BG_LIGHT);
+        centerWrap.add(card);
+
+        p.add(centerWrap, BorderLayout.CENTER);
+
+        return p;
+    }
+
+    private void showChangePasswordDialog() {
+        JDialog d = new JDialog(this, "Change Password", true);
+        JPanel p = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.anchor = GridBagConstraints.WEST;
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        p.add(Ui.createLabelBold("Change Password"), gbc);
+
+        gbc.gridy++;
+        gbc.gridx = 0;
+        p.add(Ui.createLabel("Current Password"), gbc);
+        gbc.gridx = 1;
+        JPasswordField pfOld = Ui.createPasswordField(20);
+        p.add(pfOld, gbc);
+
+        gbc.gridy++;
+        gbc.gridx = 0;
+        p.add(Ui.createLabel("New Password"), gbc);
+        gbc.gridx = 1;
+        JPasswordField pfNew = Ui.createPasswordField(20);
+        p.add(pfNew, gbc);
+
+        gbc.gridy++;
+        gbc.gridx = 0;
+        p.add(Ui.createLabel("Confirm New Password"), gbc);
+        gbc.gridx = 1;
+        JPasswordField pfConfirm = Ui.createPasswordField(20);
+        p.add(pfConfirm, gbc);
+
+        JPanel btns = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+        JButton btnChange = Ui.button("Change", () -> {
+            String oldP = new String(pfOld.getPassword());
+            String n = new String(pfNew.getPassword());
+            String c = new String(pfConfirm.getPassword());
+            if (oldP.isEmpty() || n.isEmpty() || c.isEmpty()) {
+                Ui.msgError(d, "All fields required");
+                return;
+            }
+            if (!n.equals(c)) {
+                Ui.msgError(d, "New passwords do not match");
+                return;
+            }
+            try {
+                if (!admin.verifyCurrentPassword(session, oldP)) {
+                    Ui.msgError(d, "Current password incorrect");
+                    return;
+                }
+                // basic validation
+                if (n.length() < 8) {
+                    Ui.msgError(d, "Password must be at least 8 characters");
+                    return;
+                }
+                admin.changePassword(session, n);
+                Ui.msgSuccess(d, "Password changed");
+                d.dispose();
+            } catch (Exception ex) {
+                Ui.msgError(d, ex.getMessage());
+            }
+        });
+        JButton btnCancel = Ui.buttonSecondary("Cancel", () -> d.dispose());
+        btns.add(btnChange);
+        btns.add(btnCancel);
+
+        gbc.gridy++;
+        gbc.gridx = 0;
+        gbc.gridwidth = 2;
+        p.add(btns, gbc);
+
+        d.getContentPane().add(p);
+        d.pack();
+        d.setLocationRelativeTo(this);
+        d.setVisible(true);
     }
 
     private void showAddCourseDialog() {
@@ -187,12 +376,7 @@ public class AdminDashboard extends JFrame {
         JTextField txtProgram = Ui.createTextField(15);
         form.add(txtProgram, gbc);
 
-        gbc.gridx = 0;
-        gbc.gridy++;
-        form.add(Ui.createLabel("Year:"), gbc);
-        gbc.gridx = 1;
-        JSpinner spnYear = new JSpinner(new SpinnerNumberModel(1, 1, 6, 1));
-        form.add(spnYear, gbc);
+        // Year removed from admin user creation form (use default year when needed)
 
         gbc.gridx = 0;
         gbc.gridy++;
@@ -243,7 +427,7 @@ public class AdminDashboard extends JFrame {
                 if ("STUDENT".equals(role)) {
                     String roll = txtRoll.getText().trim();
                     String prog = txtProgram.getText().trim();
-                    int year = (int) spnYear.getValue();
+                    int year = 1; // default year
                     if (roll.isEmpty() || prog.isEmpty()) {
                         Ui.msgError(this, "Roll and program required for student");
                         return;
@@ -274,7 +458,6 @@ public class AdminDashboard extends JFrame {
                 txtPhone.setText("");
                 txtEmail.setText("");
                 txtAadhar.setText("");
-                spnYear.setValue(1);
             } catch (Exception e) {
                 Ui.msgError(this, e.getMessage());
             }
@@ -404,39 +587,9 @@ public class AdminDashboard extends JFrame {
                 cbDeleteCourse.addItem(c.code + " (id=" + c.courseId + ")");
         } catch (Exception ignored) {
         }
-        JButton btnDeleteSections = Ui.buttonSecondary("Delete Sections", () -> {
-            String sel = (String) cbDeleteCourse.getSelectedItem();
-            if (sel == null) {
-                Ui.msgError(this, "No course selected");
-                return;
-            }
-            int id = Integer.parseInt(sel.substring(sel.indexOf("id=") + 3, sel.indexOf(")")));
-            try {
-                java.util.List<Integer> secs = admin.getSectionsForCourse(id);
-                if (secs.isEmpty()) {
-                    Ui.msgInfo(this, "This course has no sections.");
-                    return;
-                }
-                StringBuilder sb = new StringBuilder();
-                for (Integer s : secs)
-                    sb.append(s).append(", ");
-                String list = sb.length() > 0 ? sb.substring(0, sb.length() - 2) : "";
-                int r = JOptionPane.showConfirmDialog(this,
-                        "Delete all sections for course " + sel + "?\nSections: " + list,
-                        "Confirm Delete Sections", JOptionPane.YES_NO_OPTION);
-                if (r == JOptionPane.YES_OPTION) {
-                    int deleted = admin.deleteSectionsForCourse(session, id);
-                    Ui.msgSuccess(this, "Deleted " + deleted + " section(s).");
-                    refreshCatalog();
-                    try {
-                        refreshSections();
-                    } catch (Exception ignored) {
-                    }
-                }
-            } catch (Exception ex) {
-                Ui.msgError(this, ex.getMessage());
-            }
-        });
+        // NOTE: bulk Delete Sections button removed from Courses panel; individual
+        // section deletion is available in the Sections panel for safety and direct
+        // selection.
         JButton btnDeleteCourse = Ui.buttonSecondary("Delete Course", () -> {
             String sel = (String) cbDeleteCourse.getSelectedItem();
             if (sel == null) {
@@ -466,7 +619,6 @@ public class AdminDashboard extends JFrame {
             }
         });
         inputPanel.add(cbDeleteCourse);
-        inputPanel.add(btnDeleteSections);
         inputPanel.add(btnDeleteCourse);
 
         p.add(inputPanel, BorderLayout.NORTH);
@@ -483,9 +635,11 @@ public class AdminDashboard extends JFrame {
     private JPanel sectionsPanel() {
         JPanel p = new JPanel(new BorderLayout());
 
-        JPanel inputPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
+        JPanel inputPanel = new JPanel(new BorderLayout());
         inputPanel.setBackground(Ui.BG_LIGHT);
         inputPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        JPanel leftFields = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
+        leftFields.setOpaque(false);
 
         JLabel lbl = Ui.createLabelBold("Create New Section");
         JLabel lbl1 = Ui.createLabel("Course ID:");
@@ -495,6 +649,8 @@ public class AdminDashboard extends JFrame {
         JComboBox<String> cbInst = cbInstForSection;
         JLabel lbl3 = Ui.createLabel("Day/Time:");
         JTextField txtDay = Ui.createTextField(15);
+        JLabel lblSemester = Ui.createLabel("Semester:");
+        JComboBox<String> cbSemester = new JComboBox<>(new String[] { "Summer", "Winter", "Monsoon" });
         JLabel lbl4 = Ui.createLabel("Room:");
         JTextField txtRoom = Ui.createTextField(10);
         JLabel lbl5 = Ui.createLabel("Capacity:");
@@ -525,9 +681,38 @@ public class AdminDashboard extends JFrame {
                         Ui.msgError(this, "Select course and instructor");
                         return;
                     }
-                    Integer courseId = codeToId.get(selCode);
-                    Integer instId = instLabelToId.get(selInstLabel);
+                    // Resolve courseId from fresh course list to avoid stale map
+                    Integer courseId = null;
+                    try {
+                        java.util.List<edu.univ.erp.domain.Course> fresh = catalog.getAllCourses();
+                        for (edu.univ.erp.domain.Course c : fresh) {
+                            if (c.code.equals(selCode)) {
+                                courseId = c.courseId;
+                                break;
+                            }
+                        }
+                    } catch (SQLException se) {
+                        Ui.msgError(this, "Failed to load courses: " + se.getMessage());
+                        return;
+                    }
+                    if (courseId == null) {
+                        Ui.msgError(this, "Selected course not found");
+                        return;
+                    }
+
+                    // Parse instructor id from label like "3 - inst1" (shared combo uses this
+                    // format)
+                    Integer instId = null;
+                    try {
+                        if (selInstLabel != null && selInstLabel.contains(" - ")) {
+                            instId = Integer.parseInt(selInstLabel.split(" - ")[0]);
+                        }
+                    } catch (NumberFormatException nfe) {
+                        Ui.msgError(this, "Invalid instructor selected");
+                        return;
+                    }
                     String day = txtDay.getText().trim();
+                    String semester = (String) cbSemester.getSelectedItem();
                     String room = txtRoom.getText().trim();
                     int cap = (int) spnCap.getValue();
                     if (day.isEmpty() || room.isEmpty()) {
@@ -538,7 +723,7 @@ public class AdminDashboard extends JFrame {
                         Ui.msgError(this, "Capacity must be at least 10");
                         return;
                     }
-                    admin.createSection(session, courseId, instId, day, room, cap, "Fall", 2025);
+                    admin.createSection(session, courseId, instId, day, room, cap, semester, 2025);
                     Ui.msgSuccess(this, "Section created successfully");
                     txtDay.setText("");
                     txtRoom.setText("");
@@ -559,19 +744,109 @@ public class AdminDashboard extends JFrame {
                     () -> Ui.msgError(this, "Cannot create section: data loading failed"));
         }
 
-        inputPanel.add(lbl);
-        inputPanel.add(Box.createHorizontalStrut(15));
-        inputPanel.add(lbl1);
-        inputPanel.add(cbCourse);
-        inputPanel.add(lbl2);
-        inputPanel.add(cbInst);
-        inputPanel.add(lbl3);
-        inputPanel.add(txtDay);
-        inputPanel.add(lbl4);
-        inputPanel.add(txtRoom);
-        inputPanel.add(lbl5);
-        inputPanel.add(spnCap);
-        inputPanel.add(btnCreateHolder[0]);
+        leftFields.add(lbl);
+        leftFields.add(Box.createHorizontalStrut(15));
+        leftFields.add(lbl1);
+        leftFields.add(cbCourse);
+        leftFields.add(lbl2);
+        leftFields.add(cbInst);
+        leftFields.add(lbl3);
+        leftFields.add(txtDay);
+        leftFields.add(lblSemester);
+        leftFields.add(cbSemester);
+        leftFields.add(lbl4);
+        leftFields.add(txtRoom);
+        leftFields.add(lbl5);
+        leftFields.add(spnCap);
+        // Group action buttons into a right-aligned actions panel so they are
+        // fully visible and don't get truncated by wrapping in the input flow.
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        actions.setOpaque(false);
+        actions.add(btnCreateHolder[0]);
+
+        // Add a Delete Selected Section button so admin can remove a specific
+        // section shown in the sections table (select row then click delete)
+        JButton btnDeleteSelected = Ui.buttonSecondary("Delete Selected Section", () -> {
+            int row = tblSections.getSelectedRow();
+            if (row == -1) {
+                Ui.msgError(this, "Please select a section row to delete.");
+                return;
+            }
+            Object idObj = tblSections.getValueAt(row, 0);
+            if (idObj == null || idObj.toString().trim().isEmpty()) {
+                Ui.msgError(this, "Selected row is not a section.");
+                return;
+            }
+            int sectionId;
+            try {
+                sectionId = Integer.parseInt(idObj.toString());
+            } catch (NumberFormatException nfe) {
+                Ui.msgError(this, "Invalid section id selected.");
+                return;
+            }
+            int r = JOptionPane.showConfirmDialog(this, "Delete section " + sectionId + "?", "Confirm",
+                    JOptionPane.YES_NO_OPTION);
+            if (r != JOptionPane.YES_OPTION)
+                return;
+            try {
+                admin.deleteSection(session, sectionId);
+                Ui.msgSuccess(this, "Section deleted.");
+                refreshSections();
+                try {
+                    refreshCatalog();
+                } catch (Exception ignored) {
+                }
+                try {
+                    refreshCourseDropdowns();
+                } catch (Exception ignored) {
+                }
+            } catch (Exception ex) {
+                Ui.msgError(this, ex.getMessage());
+            }
+        });
+        actions.add(btnDeleteSelected);
+        JButton btnRemoveEnrolls = Ui.buttonSecondary("Remove Enrollments", () -> {
+            int row = tblSections.getSelectedRow();
+            if (row == -1) {
+                Ui.msgError(this, "Please select a section row to clear enrollments.");
+                return;
+            }
+            Object idObj = tblSections.getValueAt(row, 0);
+            if (idObj == null || idObj.toString().trim().isEmpty()) {
+                Ui.msgError(this, "Selected row is not a section.");
+                return;
+            }
+            int sectionId;
+            try {
+                sectionId = Integer.parseInt(idObj.toString());
+            } catch (NumberFormatException nfe) {
+                Ui.msgError(this, "Invalid section id selected.");
+                return;
+            }
+            int r = JOptionPane.showConfirmDialog(this,
+                    "Remove ALL students from section " + sectionId + "? This will delete enrollments and grades.",
+                    "Confirm Remove Enrollments", JOptionPane.YES_NO_OPTION);
+            if (r != JOptionPane.YES_OPTION)
+                return;
+            try {
+                int removed = admin.removeEnrollmentsForSection(session, sectionId);
+                Ui.msgSuccess(this, "Removed " + removed + " enrollment(s) from section.");
+                refreshSections();
+                try {
+                    refreshCatalog();
+                } catch (Exception ignored) {
+                }
+                try {
+                    refreshCourseDropdowns();
+                } catch (Exception ignored) {
+                }
+            } catch (Exception ex) {
+                Ui.msgError(this, ex.getMessage());
+            }
+        });
+        actions.add(btnRemoveEnrolls);
+        inputPanel.add(leftFields, BorderLayout.CENTER);
+        inputPanel.add(actions, BorderLayout.EAST);
 
         p.add(inputPanel, BorderLayout.NORTH);
 
@@ -627,7 +902,31 @@ public class AdminDashboard extends JFrame {
 
     private void refreshSections() {
         try {
-            tblSections.setModel(catalog.listCatalog());
+            javax.swing.table.DefaultTableModel full = catalog.listCatalog();
+            // Filter out rows that represent courses without sections (Section ID empty)
+            int cols = full.getColumnCount();
+            String[] colNames = new String[cols];
+            for (int i = 0; i < cols; i++)
+                colNames[i] = full.getColumnName(i);
+            javax.swing.table.DefaultTableModel filtered = new javax.swing.table.DefaultTableModel(colNames, 0) {
+                @Override
+                public boolean isCellEditable(int r, int c) {
+                    return false;
+                }
+            };
+            for (int r = 0; r < full.getRowCount(); r++) {
+                Object idObj = full.getValueAt(r, 0);
+                if (idObj == null)
+                    continue;
+                String s = idObj.toString().trim();
+                if (s.isEmpty())
+                    continue; // skip course-only row
+                Object[] row = new Object[cols];
+                for (int c = 0; c < cols; c++)
+                    row[c] = full.getValueAt(r, c);
+                filtered.addRow(row);
+            }
+            tblSections.setModel(filtered);
         } catch (SQLException e) {
             Ui.msgError(this, e.getMessage());
         }

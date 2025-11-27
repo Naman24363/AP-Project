@@ -55,6 +55,15 @@ public class Ui {
         }
     }
 
+    /**
+     * Ensure the Ui class static initializer runs. Call this at application startup
+     * before creating any Swing components so the look-and-feel and defaults are
+     * applied.
+     */
+    public static void init() {
+        // no-op; static initializer already configures defaults
+    }
+
     public static void msgInfo(Component parent, String text) {
         JOptionPane.showMessageDialog(parent, text, "ℹ Info", JOptionPane.INFORMATION_MESSAGE);
     }
@@ -203,6 +212,79 @@ public class Ui {
         });
 
         return b;
+    }
+
+    public static JButton tileButton(String text, Runnable onClick) {
+        JButton b = new JButton("<html><div style='text-align:center;'><b>" + text + "</b></div></html>") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                int w = getWidth();
+                int h = getHeight();
+                // rounded gradient background
+                GradientPaint gp = new GradientPaint(0, 0, PRIMARY_LIGHT, 0, h, PRIMARY_DARK);
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setPaint(gp);
+                g2.fillRoundRect(0, 0, w, h, 14, 14);
+
+                // subtle inner overlay when pressed
+                if (getModel().isPressed()) {
+                    g2.setColor(new Color(0, 0, 0, 40));
+                    g2.fillRoundRect(0, 0, w, h, 14, 14);
+                }
+
+                super.paintComponent(g);
+                g2.dispose();
+            }
+        };
+        b.setContentAreaFilled(false);
+        b.setOpaque(false);
+        b.setFocusPainted(false);
+        b.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0, 0, 0, 30), 1),
+                BorderFactory.createEmptyBorder(8, 8, 8, 8)));
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        b.setPreferredSize(new Dimension(200, 120));
+        b.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        b.setForeground(Color.WHITE);
+
+        b.addActionListener(e -> {
+            try {
+                onClick.run();
+            } catch (Exception ex) {
+                JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(b);
+                msgError(topFrame != null ? topFrame : b, ex.getMessage());
+            }
+        });
+
+        b.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                // no-op; visual handled by paintComponent gradient
+            }
+        });
+
+        return b;
+    }
+
+    public static JPanel headerPanel(String titleText, String subtitleText) {
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBackground(BG_LIGHT);
+        header.setBorder(new EmptyBorder(12, 20, 12, 20));
+        JLabel title = createLabelBold(titleText);
+        title.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        title.setForeground(TEXT_DARK);
+        JLabel subtitle = createLabel(subtitleText);
+        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        subtitle.setForeground(TEXT_LIGHT);
+        header.add(title, BorderLayout.NORTH);
+        header.add(subtitle, BorderLayout.SOUTH);
+        return header;
     }
 
     public static JPanel createPanel(LayoutManager layout, Color background) {
