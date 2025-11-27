@@ -17,7 +17,7 @@ public class AuthDb {
         String user = Config.get("auth.user");
         String pass = Config.get("auth.password");
 
-        if (url == null || url.isEmpty() || user == null || user.isEmpty()) {
+        if (url == null || url.isEmpty() || user == null || user.isEmpty() || pass == null || pass.isEmpty()) {
             throw new SQLException("Database configuration missing or incomplete (check config/app.properties)");
         }
 

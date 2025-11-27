@@ -63,6 +63,7 @@ public class AdminDashboard extends JFrame {
         this.tabs = new JTabbedPane();
         tabs.add("Dashboard", adminLandingPanel());
         tabs.add("Maintenance", maintenancePanel());
+        tabs.add("Backup & Restore", backupRestorePanel());
         tabs.add("Users", usersPanel());
         tabs.add("Courses", coursesPanel());
         tabs.add("Sections", sectionsPanel());
@@ -77,7 +78,7 @@ public class AdminDashboard extends JFrame {
 
     private JPanel adminLandingPanel() {
         JPanel p = new JPanel(new BorderLayout());
-        JPanel grid = new JPanel(new GridLayout(2, 3, 16, 16));
+        JPanel grid = new JPanel(new GridLayout(2, 4, 16, 16));
         grid.setOpaque(false);
         grid.setBorder(new EmptyBorder(8, 8, 8, 8));
 
@@ -107,6 +108,7 @@ public class AdminDashboard extends JFrame {
         JButton bSections = Ui.tileButton("Create Sections", () -> openTab.accept("Sections"));
         JButton bMaint = Ui.tileButton("Maintenance", () -> openTab.accept("Maintenance"));
         JButton bCatalog = Ui.tileButton("Catalog", () -> openTab.accept("Catalog"));
+        JButton bBackup = Ui.tileButton("Backup & Restore", () -> openTab.accept("Backup & Restore"));
         JButton bSettings = Ui.tileButton("Settings", this::showChangePasswordDialog);
 
         Dimension smallTile = new Dimension(140, 84);
@@ -115,6 +117,7 @@ public class AdminDashboard extends JFrame {
         bSections.setPreferredSize(smallTile);
         bMaint.setPreferredSize(smallTile);
         bCatalog.setPreferredSize(smallTile);
+        bBackup.setPreferredSize(smallTile);
         bSettings.setPreferredSize(smallTile);
 
         grid.add(bUsers);
@@ -122,6 +125,7 @@ public class AdminDashboard extends JFrame {
         grid.add(bSections);
         grid.add(bMaint);
         grid.add(bCatalog);
+        grid.add(bBackup);
         grid.add(bSettings);
 
         JPanel card = Ui.createPanel(new BorderLayout(), Color.WHITE);
@@ -289,13 +293,10 @@ public class AdminDashboard extends JFrame {
         JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 20));
         JLabel lbl = Ui.createLabelBold("System Maintenance Mode");
         JCheckBox chk = new JCheckBox("Enable Maintenance (Read-Only)");
-        boolean maint = false;
         try {
-            maint = MaintenanceService.isMaintenanceOn();
+            chk.setSelected(MaintenanceService.isMaintenanceOn());
         } catch (Exception ignored) {
-            maint = false;
         }
-        chk.setSelected(maint);
 
         JButton btnApply = Ui.button("Apply", () -> {
             try {
@@ -308,6 +309,183 @@ public class AdminDashboard extends JFrame {
         p.add(lbl);
         p.add(chk);
         p.add(btnApply);
+        return p;
+    }
+
+    private JPanel backupRestorePanel() {
+        JPanel p = new JPanel(new BorderLayout());
+        p.setBorder(new EmptyBorder(20, 20, 20, 20));
+
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
+        JLabel title = Ui.createLabelBold("Database Backup & Restore");
+        JLabel subtitle = Ui.createLabel("Create backups and restore from existing backup files");
+        title.setHorizontalAlignment(SwingConstants.LEFT);
+        subtitle.setHorizontalAlignment(SwingConstants.LEFT);
+        header.add(title, BorderLayout.NORTH);
+        header.add(subtitle, BorderLayout.SOUTH);
+
+        JPanel center = new JPanel(new GridBagLayout());
+        center.setOpaque(false);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(12, 12, 12, 12);
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+
+        // Backup section
+        JPanel backupPanel = Ui.createPanel(new GridBagLayout(), Color.WHITE);
+        backupPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder("Create Backup"),
+                new EmptyBorder(12, 12, 12, 12)));
+
+        GridBagConstraints bgbc = new GridBagConstraints();
+        bgbc.insets = new Insets(8, 8, 8, 8);
+        bgbc.anchor = GridBagConstraints.WEST;
+        bgbc.fill = GridBagConstraints.HORIZONTAL;
+
+        bgbc.gridx = 0;
+        bgbc.gridy = 0;
+        JLabel lblBackupDir = Ui.createLabel("Backup Directory:");
+        backupPanel.add(lblBackupDir, bgbc);
+
+        bgbc.gridx = 1;
+        JTextField txtBackupDir = Ui.createTextField(30);
+        txtBackupDir.setText("backups");
+        backupPanel.add(txtBackupDir, bgbc);
+
+        bgbc.gridx = 2;
+        JButton btnBrowseBackup = Ui.button("Browse", () -> {
+            JFileChooser fc = new JFileChooser();
+            fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            int result = fc.showOpenDialog(this);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                txtBackupDir.setText(fc.getSelectedFile().getAbsolutePath());
+            }
+        });
+        backupPanel.add(btnBrowseBackup, bgbc);
+
+        bgbc.gridx = 0;
+        bgbc.gridy = 1;
+        bgbc.gridwidth = 3;
+        JTextArea taBackupStatus = new JTextArea(4, 40);
+        taBackupStatus.setEditable(false);
+        taBackupStatus.setLineWrap(true);
+        taBackupStatus.setWrapStyleWord(true);
+        JScrollPane spBackup = new JScrollPane(taBackupStatus);
+        backupPanel.add(spBackup, bgbc);
+
+        bgbc.gridy = 2;
+        bgbc.gridwidth = 1;
+        bgbc.gridx = 0;
+        JButton btnCreateBackup = Ui.button("Create Backup", () -> {
+            String backupDir = txtBackupDir.getText().trim();
+            if (backupDir.isEmpty()) {
+                Ui.msgError(this, "Please specify a backup directory");
+                return;
+            }
+
+            taBackupStatus.setText("Creating backup...\nPlease wait...");
+            new Thread(() -> {
+                try {
+                    String backupPath = edu.univ.erp.service.BackupService.backupDatabase(session, backupDir);
+                    taBackupStatus.setText("✓ Backup completed successfully!\n\nBackup file:\n" + backupPath);
+                    Ui.msgSuccess(AdminDashboard.this,
+                            "Database backup created successfully!\n\nFile: " + backupPath);
+                } catch (Exception ex) {
+                    taBackupStatus.setText("✗ Backup failed:\n" + ex.getMessage());
+                    Ui.msgError(AdminDashboard.this, "Backup failed: " + ex.getMessage());
+                }
+            }).start();
+        });
+        backupPanel.add(btnCreateBackup, bgbc);
+
+        center.add(backupPanel, gbc);
+
+        // Restore section
+        gbc.gridy = 1;
+        JPanel restorePanel = Ui.createPanel(new GridBagLayout(), Color.WHITE);
+        restorePanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder("Restore from Backup"),
+                new EmptyBorder(12, 12, 12, 12)));
+
+        GridBagConstraints rgbc = new GridBagConstraints();
+        rgbc.insets = new Insets(8, 8, 8, 8);
+        rgbc.anchor = GridBagConstraints.WEST;
+        rgbc.fill = GridBagConstraints.HORIZONTAL;
+
+        rgbc.gridx = 0;
+        rgbc.gridy = 0;
+        JLabel lblBackupFile = Ui.createLabel("Backup File:");
+        restorePanel.add(lblBackupFile, rgbc);
+
+        rgbc.gridx = 1;
+        JTextField txtBackupFile = Ui.createTextField(30);
+        restorePanel.add(txtBackupFile, rgbc);
+
+        rgbc.gridx = 2;
+        JButton btnBrowseRestore = Ui.button("Browse", () -> {
+            JFileChooser fc = new JFileChooser();
+            fc.setFileSelectionMode(JFileChooser.FILES_ONLY);
+            int result = fc.showOpenDialog(this);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                txtBackupFile.setText(fc.getSelectedFile().getAbsolutePath());
+            }
+        });
+        restorePanel.add(btnBrowseRestore, rgbc);
+
+        rgbc.gridx = 0;
+        rgbc.gridy = 1;
+        rgbc.gridwidth = 3;
+        JTextArea taRestoreStatus = new JTextArea(4, 40);
+        taRestoreStatus.setEditable(false);
+        taRestoreStatus.setLineWrap(true);
+        taRestoreStatus.setWrapStyleWord(true);
+        JScrollPane spRestore = new JScrollPane(taRestoreStatus);
+        restorePanel.add(spRestore, rgbc);
+
+        rgbc.gridy = 2;
+        rgbc.gridwidth = 1;
+        rgbc.gridx = 0;
+        JButton btnRestore = Ui.button("Restore Database", () -> {
+            String backupFile = txtBackupFile.getText().trim();
+            if (backupFile.isEmpty()) {
+                Ui.msgError(this, "Please select a backup file");
+                return;
+            }
+
+            int confirm = JOptionPane.showConfirmDialog(this,
+                    "WARNING: This will replace all data in the database with the backup content.\n\n"
+                            + "This action cannot be undone. Continue?",
+                    "Confirm Database Restore", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+
+            if (confirm != JOptionPane.YES_OPTION) {
+                return;
+            }
+
+            taRestoreStatus.setText("Restoring database...\nPlease wait...");
+            new Thread(() -> {
+                try {
+                    edu.univ.erp.service.BackupService.restoreDatabase(session, backupFile);
+                    taRestoreStatus.setText(
+                            "✓ Database restored successfully from backup!\n\nFile: " + backupFile);
+                    Ui.msgSuccess(AdminDashboard.this,
+                            "Database restored successfully!\n\nThe application will need to restart.");
+                } catch (Exception ex) {
+                    taRestoreStatus.setText("✗ Restore failed:\n" + ex.getMessage());
+                    Ui.msgError(AdminDashboard.this, "Restore failed: " + ex.getMessage());
+                }
+            }).start();
+        });
+        restorePanel.add(btnRestore, rgbc);
+
+        center.add(restorePanel, gbc);
+
+        p.add(header, BorderLayout.NORTH);
+        p.add(center, BorderLayout.CENTER);
+
         return p;
     }
 
@@ -628,20 +806,16 @@ public class AdminDashboard extends JFrame {
         JSpinner spnCap = new JSpinner(new SpinnerNumberModel(40, 10, 100, 1));
 
         JButton[] btnCreateHolder = new JButton[1];
-        java.util.Map<String, Integer> codeToId = new java.util.HashMap<>();
-        java.util.Map<String, Integer> instLabelToId = new java.util.HashMap<>();
         try {
             java.util.List<edu.univ.erp.domain.Course> courses = catalog.getAllCourses();
             for (edu.univ.erp.domain.Course c : courses) {
                 cbCourseForSection.addItem(c.code);
-                codeToId.put(c.code, c.courseId);
             }
 
             java.util.Map<Integer, String> instr = admin.getAllInstructors();
             for (java.util.Map.Entry<Integer, String> e : instr.entrySet()) {
                 String label = e.getKey() + " - " + e.getValue();
                 cbInst.addItem(label);
-                instLabelToId.put(label, e.getKey());
             }
             btnCreateHolder[0] = Ui.button("Create Section", () -> {
                 try {
@@ -671,7 +845,7 @@ public class AdminDashboard extends JFrame {
 
                     Integer instId = null;
                     try {
-                        if (selInstLabel != null && selInstLabel.contains(" - ")) {
+                        if (selInstLabel.contains(" - ")) {
                             instId = Integer.parseInt(selInstLabel.split(" - ")[0]);
                         }
                     } catch (NumberFormatException nfe) {
