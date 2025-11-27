@@ -16,7 +16,6 @@ public class ChangePasswordPanel extends JPanel {
     private final JPasswordField pfOldPassword;
     private final JPasswordField pfNewPassword;
     private final JPasswordField pfConfirmPassword;
-    private final JLabel lblStrength;
 
     public ChangePasswordPanel(Session s) {
         this.session = s;
@@ -58,54 +57,10 @@ public class ChangePasswordPanel extends JPanel {
 
         contentPanel.add(Box.createVerticalStrut(8));
 
-        // Password strength indicator
-        JPanel strengthPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        strengthPanel.setOpaque(false);
-        lblStrength = Ui.createLabel("Password Strength: Weak");
-        lblStrength.setForeground(Ui.ERROR);
-        strengthPanel.add(lblStrength);
-
-        pfNewPassword.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyReleased(java.awt.event.KeyEvent evt) {
-                updatePasswordStrength();
-            }
-        });
-
-        contentPanel.add(strengthPanel);
-        contentPanel.add(Box.createVerticalStrut(12));
-
         // Confirm Password
         contentPanel.add(createFormGroup(
                 "Confirm New Password",
                 pfConfirmPassword = Ui.createPasswordField(25)));
-
-        contentPanel.add(Box.createVerticalStrut(20));
-
-        // Requirements
-        JPanel reqPanel = new JPanel();
-        reqPanel.setOpaque(false);
-        reqPanel.setLayout(new BoxLayout(reqPanel, BoxLayout.Y_AXIS));
-
-        JLabel reqTitle = Ui.createLabelBold("Password Requirements:");
-        reqTitle.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        reqPanel.add(reqTitle);
-
-        String[] requirements = {
-                "• At least 8 characters long",
-                "• Mix of uppercase and lowercase letters",
-                "• At least one number",
-                "• At least one special character (!@#$%^&*)"
-        };
-
-        for (String req : requirements) {
-            JLabel reqLabel = Ui.createLabel(req);
-            reqLabel.setFont(new Font("Segoe UI", Font.PLAIN, 10));
-            reqLabel.setForeground(Ui.TEXT_LIGHT);
-            reqPanel.add(reqLabel);
-        }
-
-        contentPanel.add(reqPanel);
         contentPanel.add(Box.createVerticalStrut(20));
 
         // Buttons
@@ -152,51 +107,8 @@ public class ChangePasswordPanel extends JPanel {
         return group;
     }
 
-    private void updatePasswordStrength() {
-        String password = new String(pfNewPassword.getPassword());
-        PasswordStrength strength = calculateStrength(password);
-
-        switch (strength) {
-            case WEAK:
-                lblStrength.setText("Password Strength: Weak");
-                lblStrength.setForeground(Ui.ERROR);
-                break;
-            case MEDIUM:
-                lblStrength.setText("Password Strength: Medium");
-                lblStrength.setForeground(Ui.WARNING);
-                break;
-            case STRONG:
-                lblStrength.setText("Password Strength: Strong");
-                lblStrength.setForeground(Ui.SUCCESS);
-                break;
-        }
-    }
-
-    private PasswordStrength calculateStrength(String password) {
-        if (password.length() < 8)
-            return PasswordStrength.WEAK;
-
-        boolean hasUpper = password.matches(".*[A-Z].*");
-        boolean hasLower = password.matches(".*[a-z].*");
-        boolean hasDigit = password.matches(".*\\d.*");
-        boolean hasSpecial = password.matches(".*[!@#$%^&*].*");
-
-        int strength = 0;
-        if (hasUpper)
-            strength++;
-        if (hasLower)
-            strength++;
-        if (hasDigit)
-            strength++;
-        if (hasSpecial)
-            strength++;
-
-        if (strength >= 3)
-            return PasswordStrength.STRONG;
-        if (strength >= 2)
-            return PasswordStrength.MEDIUM;
-        return PasswordStrength.WEAK;
-    }
+    // Password strength checks removed per request: no composition/length
+    // restrictions
 
     private void changePassword() {
         String oldPassword = new String(pfOldPassword.getPassword());
@@ -209,43 +121,8 @@ public class ChangePasswordPanel extends JPanel {
             return;
         }
 
-        if (newPassword.isEmpty()) {
-            Ui.msgError(this, "Please enter a new password.");
-            return;
-        }
-
         if (!newPassword.equals(confirmPassword)) {
             Ui.msgError(this, "New passwords do not match.");
-            return;
-        }
-
-        if (newPassword.length() < 8) {
-            Ui.msgError(this, "Password must be at least 8 characters long.");
-            return;
-        }
-
-        if (!newPassword.matches(".*[A-Z].*")) {
-            Ui.msgError(this, "Password must contain at least one uppercase letter.");
-            return;
-        }
-
-        if (!newPassword.matches(".*[a-z].*")) {
-            Ui.msgError(this, "Password must contain at least one lowercase letter.");
-            return;
-        }
-
-        if (!newPassword.matches(".*\\d.*")) {
-            Ui.msgError(this, "Password must contain at least one number.");
-            return;
-        }
-
-        if (!newPassword.matches(".*[!@#$%^&*].*")) {
-            Ui.msgError(this, "Password must contain at least one special character (!@#$%^&*).");
-            return;
-        }
-
-        if (oldPassword.equals(newPassword)) {
-            Ui.msgError(this, "New password must be different from current password.");
             return;
         }
 
@@ -305,7 +182,5 @@ public class ChangePasswordPanel extends JPanel {
         }
     }
 
-    enum PasswordStrength {
-        WEAK, MEDIUM, STRONG
-    }
+    // enum removed
 }

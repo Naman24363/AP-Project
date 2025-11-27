@@ -5,6 +5,10 @@ import javax.swing.*;
 
 public class Main {
     public static void main(String[] args) {
+        // Ensure our UI helpers (and look-and-feel) initialize before creating any
+        // Swing windows
+        edu.univ.erp.util.Ui.init();
+
         SwingUtilities.invokeLater(() -> new LoginFrame().setVisible(true));
     }
 }

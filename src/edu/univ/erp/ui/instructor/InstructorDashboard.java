@@ -1,11 +1,15 @@
 package edu.univ.erp.ui.instructor;
 
+import edu.univ.erp.auth.PasswordHasher;
 import edu.univ.erp.auth.Session;
+import edu.univ.erp.data.AuthDb;
 import edu.univ.erp.service.InstructorService;
+import edu.univ.erp.ui.auth.LoginFrame;
 import edu.univ.erp.util.Ui;
 import java.awt.*;
 import java.sql.SQLException;
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 
 public class InstructorDashboard extends JFrame {
@@ -15,6 +19,7 @@ public class InstructorDashboard extends JFrame {
     private final JTable tblRoster = new JTable();
     private final JTable tblStats = new JTable();
     private int currentRosterSectionId = -1;
+    private JTabbedPane tabs;
 
     public InstructorDashboard(Session s) {
         this.session = s;
@@ -23,12 +28,211 @@ public class InstructorDashboard extends JFrame {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        JTabbedPane tabs = new JTabbedPane();
+        // Top header (welcome + subtitle + logout) to match app style
+        JPanel topBar = new JPanel(new BorderLayout());
+        topBar.setBackground(new Color(41, 128, 185));
+        topBar.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
+
+        JPanel left = new JPanel(new GridLayout(2, 1));
+        left.setOpaque(false);
+        JLabel lblWelcome = new JLabel("Welcome, " + s.username);
+        lblWelcome.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        lblWelcome.setForeground(Color.WHITE);
+        left.add(lblWelcome);
+        JLabel lblSub = new JLabel("Instructor Dashboard");
+        lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblSub.setForeground(new Color(200, 230, 250));
+        left.add(lblSub);
+
+        JButton btnLogout = new JButton("Logout");
+        btnLogout.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnLogout.setBackground(new Color(244, 81, 30));
+        btnLogout.setForeground(Color.WHITE);
+        btnLogout.setFocusPainted(false);
+        btnLogout.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        btnLogout.addActionListener(e -> {
+            dispose();
+            new LoginFrame().setVisible(true);
+        });
+
+        topBar.add(left, BorderLayout.WEST);
+        topBar.add(btnLogout, BorderLayout.EAST);
+
+        this.tabs = new JTabbedPane();
+        tabs.add("Dashboard", instructorLandingPanel());
         tabs.add("My Sections", sectionsPanel());
         tabs.add("Grades", gradesPanel());
         tabs.add("Class Stats", statsPanel());
-        add(tabs);
+        tabs.add("Settings", settingsPanel());
+
+        JPanel main = new JPanel(new BorderLayout());
+        main.add(topBar, BorderLayout.NORTH);
+        main.add(tabs, BorderLayout.CENTER);
+        add(main);
         refreshSections();
+    }
+
+    private void showChangePasswordDialog() {
+        JDialog d = new JDialog(this, "Change Password", true);
+        JPanel p = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.anchor = GridBagConstraints.WEST;
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        p.add(Ui.createLabelBold("Change Password"), gbc);
+
+        gbc.gridy++;
+        gbc.gridx = 0;
+        p.add(Ui.createLabel("Current Password"), gbc);
+        gbc.gridx = 1;
+        JPasswordField pfOld = Ui.createPasswordField(20);
+        p.add(pfOld, gbc);
+
+        gbc.gridy++;
+        gbc.gridx = 0;
+        p.add(Ui.createLabel("New Password"), gbc);
+        gbc.gridx = 1;
+        JPasswordField pfNew = Ui.createPasswordField(20);
+        p.add(pfNew, gbc);
+
+        gbc.gridy++;
+        gbc.gridx = 0;
+        p.add(Ui.createLabel("Confirm New Password"), gbc);
+        gbc.gridx = 1;
+        JPasswordField pfConfirm = Ui.createPasswordField(20);
+        p.add(pfConfirm, gbc);
+
+        JPanel btns = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+        JButton btnChange = Ui.button("Change", () -> {
+            String oldP = new String(pfOld.getPassword());
+            String n = new String(pfNew.getPassword());
+            String c = new String(pfConfirm.getPassword());
+            if (oldP.isEmpty() || n.isEmpty() || c.isEmpty()) {
+                Ui.msgError(d, "All fields required");
+                return;
+            }
+            if (!n.equals(c)) {
+                Ui.msgError(d, "New passwords do not match");
+                return;
+            }
+            if (n.length() < 8) {
+                Ui.msgError(d, "Password must be at least 8 characters");
+                return;
+            }
+            try {
+                // verify current password using AuthDb
+                boolean ok = false;
+                try (java.sql.Connection conn = AuthDb.get();
+                        java.sql.PreparedStatement ps = conn
+                                .prepareStatement("SELECT password_hash FROM users_auth WHERE user_id = ?")) {
+                    ps.setInt(1, session.userId);
+                    try (java.sql.ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            String hash = rs.getString(1);
+                            ok = PasswordHasher.verify(oldP, hash);
+                        }
+                    }
+                }
+                if (!ok) {
+                    Ui.msgError(d, "Current password incorrect");
+                    return;
+                }
+
+                // update password
+                String newHash = PasswordHasher.hash(n);
+                try (java.sql.Connection conn = AuthDb.get();
+                        java.sql.PreparedStatement ps = conn
+                                .prepareStatement("UPDATE users_auth SET password_hash = ? WHERE user_id = ?")) {
+                    ps.setString(1, newHash);
+                    ps.setInt(2, session.userId);
+                    ps.executeUpdate();
+                }
+
+                Ui.msgSuccess(d, "Password changed");
+                d.dispose();
+            } catch (Exception ex) {
+                Ui.msgError(d, ex.getMessage());
+            }
+        });
+        JButton btnCancel = Ui.buttonSecondary("Cancel", () -> d.dispose());
+        btns.add(btnChange);
+        btns.add(btnCancel);
+
+        gbc.gridy++;
+        gbc.gridx = 0;
+        gbc.gridwidth = 2;
+        p.add(btns, gbc);
+
+        d.getContentPane().add(p);
+        d.pack();
+        d.setLocationRelativeTo(this);
+        d.setVisible(true);
+    }
+
+    private JPanel instructorLandingPanel() {
+        JPanel p = new JPanel(new BorderLayout());
+        JPanel grid = new JPanel(new GridLayout(2, 3, 16, 16));
+        grid.setOpaque(false);
+        grid.setBorder(new EmptyBorder(8, 8, 8, 8));
+
+        java.util.function.Consumer<String> openTab = (name) -> {
+            if (InstructorDashboard.this.tabs == null)
+                return;
+            for (int i = 0; i < InstructorDashboard.this.tabs.getTabCount(); i++) {
+                if (InstructorDashboard.this.tabs.getTitleAt(i).equalsIgnoreCase(name)) {
+                    InstructorDashboard.this.tabs.setSelectedIndex(i);
+                    return;
+                }
+            }
+        };
+
+        JButton bSections = Ui.tileButton("My Sections", () -> openTab.accept("My Sections"));
+        JButton bGrades = Ui.tileButton("Grades", () -> openTab.accept("Grades"));
+        JButton bStats = Ui.tileButton("Class Stats", () -> openTab.accept("Class Stats"));
+        JButton bImport = Ui.tileButton("Import Grades", () -> openTab.accept("Grades"));
+        JButton bExport = Ui.tileButton("Export Grades", () -> openTab.accept("Grades"));
+        JButton bSettings = Ui.tileButton("Settings", () -> openTab.accept("Settings"));
+
+        Dimension smallTile = new Dimension(140, 84);
+        bSections.setPreferredSize(smallTile);
+        bGrades.setPreferredSize(smallTile);
+        bStats.setPreferredSize(smallTile);
+        bImport.setPreferredSize(smallTile);
+        bExport.setPreferredSize(smallTile);
+        bSettings.setPreferredSize(smallTile);
+
+        grid.add(bSections);
+        grid.add(bGrades);
+        grid.add(bStats);
+        grid.add(bImport);
+        grid.add(bExport);
+        grid.add(bSettings);
+
+        JPanel card = Ui.createPanel(new BorderLayout(), Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0, 0, 0, 30), 1),
+                new EmptyBorder(18, 18, 18, 18)));
+        card.add(grid, BorderLayout.CENTER);
+
+        JPanel centerWrap = new JPanel(new GridBagLayout());
+        centerWrap.setBackground(Ui.BG_LIGHT);
+        centerWrap.add(card);
+
+        // header above tiles
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBorder(new EmptyBorder(10, 20, 0, 20));
+        JLabel title = Ui.createLabelBold("Instructor Dashboard");
+        JLabel subtitle = Ui.createLabel("Quick instructor actions");
+        title.setHorizontalAlignment(SwingConstants.LEFT);
+        subtitle.setHorizontalAlignment(SwingConstants.LEFT);
+        header.add(title, BorderLayout.NORTH);
+        header.add(subtitle, BorderLayout.SOUTH);
+
+        p.add(header, BorderLayout.NORTH);
+        p.add(centerWrap, BorderLayout.CENTER);
+        return p;
     }
 
     private JPanel sectionsPanel() {
@@ -45,14 +249,42 @@ public class InstructorDashboard extends JFrame {
         JPanel p = new JPanel(new BorderLayout());
         JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT));
         top.add(Ui.createLabel("Section ID:"));
-        JSpinner spnSection = new JSpinner(new SpinnerNumberModel(1, 1, 100, 1));
-        top.add(spnSection);
-        JButton btnLoad = Ui.button("Load Roster", () -> loadRoster((int) spnSection.getValue()));
-        JButton btnExport = Ui.button("Export CSV", () -> exportGrades((int) spnSection.getValue()));
-        JButton btnImport = Ui.button("Import CSV", () -> importGrades((int) spnSection.getValue()));
+        JTextField txtSection = Ui.createTextField(6);
+        top.add(txtSection);
+        JButton btnLoad = Ui.button("Load Students", () -> {
+            try {
+                int sid = Integer.parseInt(txtSection.getText().trim());
+                loadRoster(sid);
+            } catch (NumberFormatException nfe) {
+                Ui.msgError(this, "Invalid Section ID");
+            }
+        });
+        JButton btnExport = Ui.button("Export CSV", () -> {
+            try {
+                int sid = Integer.parseInt(txtSection.getText().trim());
+                exportGrades(sid);
+            } catch (NumberFormatException nfe) {
+                Ui.msgError(this, "Invalid Section ID");
+            }
+        });
+        JButton btnImport = Ui.button("Import CSV", () -> {
+            try {
+                int sid = Integer.parseInt(txtSection.getText().trim());
+                importGrades(sid);
+            } catch (NumberFormatException nfe) {
+                Ui.msgError(this, "Invalid Section ID");
+            }
+        });
         JButton btnSaveSelected = Ui.button("Save Selected", () -> saveSelected());
         JButton btnSaveAll = Ui.button("Save All", () -> saveAll());
-        JButton btnSetWeights = Ui.button("Set Weights", () -> setWeights((int) spnSection.getValue()));
+        JButton btnSetWeights = Ui.button("Set Weights", () -> {
+            try {
+                int sid = Integer.parseInt(txtSection.getText().trim());
+                setWeights(sid);
+            } catch (NumberFormatException nfe) {
+                Ui.msgError(this, "Invalid Section ID");
+            }
+        });
         top.add(btnLoad);
         top.add(btnExport);
         top.add(btnSaveSelected);
@@ -68,9 +300,16 @@ public class InstructorDashboard extends JFrame {
         JPanel p = new JPanel(new BorderLayout());
         JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT));
         top.add(Ui.createLabel("Section ID:"));
-        JSpinner spnSection = new JSpinner(new SpinnerNumberModel(1, 1, 100, 1));
-        top.add(spnSection);
-        JButton btnLoad = Ui.button("Load Stats", () -> loadStats((int) spnSection.getValue()));
+        JTextField txtSection2 = Ui.createTextField(6);
+        top.add(txtSection2);
+        JButton btnLoad = Ui.button("Load Stats", () -> {
+            try {
+                int sid = Integer.parseInt(txtSection2.getText().trim());
+                loadStats(sid);
+            } catch (NumberFormatException nfe) {
+                Ui.msgError(this, "Invalid Section ID");
+            }
+        });
         top.add(btnLoad);
         p.add(top, BorderLayout.NORTH);
         p.add(new JScrollPane(tblStats), BorderLayout.CENTER);
@@ -87,12 +326,46 @@ public class InstructorDashboard extends JFrame {
 
     private void loadRoster(int sectionId) {
         try {
-            // Load base (read-only) model from service and copy into an editable model
+            // Load base (read-only) model from service
             DefaultTableModel base = instructor.roster(session, sectionId);
             int cols = base.getColumnCount();
-            String[] colNames = new String[cols];
-            for (int i = 0; i < cols; i++)
-                colNames[i] = base.getColumnName(i);
+
+            // Collect student IDs from column index 1 (Student ID)
+            java.util.Set<Integer> studentIds = new java.util.HashSet<>();
+            for (int r = 0; r < base.getRowCount(); r++) {
+                Object idObj = base.getValueAt(r, 1);
+                if (idObj instanceof Integer) {
+                    studentIds.add((Integer) idObj);
+                } else if (idObj != null) {
+                    try {
+                        studentIds.add(Integer.parseInt(idObj.toString()));
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+            }
+
+            java.util.Map<Integer, String> names = new java.util.HashMap<>();
+            try {
+                names.putAll(edu.univ.erp.data.AuthLookup.usernamesForIds(studentIds));
+            } catch (SQLException ex) {
+                // lookup failed, continue with numeric ids
+                System.err.println("Auth lookup failed: " + ex.getMessage());
+            }
+
+            // Prepare column names: replace "Student ID" with "Student Name" and
+            // show Section ID instead of Enrollment ID. Keep the actual
+            // enrollment id in a hidden trailing column so save operations still
+            // have access to it.
+            String[] colNames = new String[cols + 1];
+            for (int i = 0; i < cols; i++) {
+                String n = base.getColumnName(i);
+                if ("Student ID".equalsIgnoreCase(n))
+                    n = "Student Name";
+                if ("Enrollment ID".equalsIgnoreCase(n))
+                    n = "Section ID"; // visible header
+                colNames[i] = n;
+            }
+            colNames[cols] = "_enrollment_id"; // hidden internal id column
 
             DefaultTableModel editable = new DefaultTableModel(colNames, 0) {
                 @Override
@@ -103,9 +376,31 @@ public class InstructorDashboard extends JFrame {
             };
 
             for (int r = 0; r < base.getRowCount(); r++) {
-                Object[] row = new Object[cols];
-                for (int c = 0; c < cols; c++)
-                    row[c] = base.getValueAt(r, c);
+                Object[] row = new Object[cols + 1];
+                for (int c = 0; c < cols; c++) {
+                    Object val = base.getValueAt(r, c);
+                    if (c == 0) {
+                        // base enrollment id: show sectionId in visible column
+                        row[0] = sectionId;
+                        // keep actual enrollment id in hidden column at end
+                        row[cols] = val;
+                    } else if (c == 1) { // student id -> student name
+                        String name = "";
+                        if (val instanceof Integer) {
+                            name = names.getOrDefault((Integer) val, val.toString());
+                        } else if (val != null) {
+                            try {
+                                int uid = Integer.parseInt(val.toString());
+                                name = names.getOrDefault(uid, val.toString());
+                            } catch (NumberFormatException nfe) {
+                                name = val.toString();
+                            }
+                        }
+                        row[c] = name;
+                    } else {
+                        row[c] = val;
+                    }
+                }
                 editable.addRow(row);
             }
 
@@ -128,7 +423,8 @@ public class InstructorDashboard extends JFrame {
         }
 
         try {
-            Object eidObj = tblRoster.getValueAt(row, 0);
+            int lastCol = tblRoster.getColumnCount() - 1;
+            Object eidObj = tblRoster.getValueAt(row, lastCol);
             if (eidObj == null)
                 throw new RuntimeException("Enrollment ID missing");
             int enrollmentId = (int) eidObj;
@@ -153,7 +449,8 @@ public class InstructorDashboard extends JFrame {
         try {
             int rows = tblRoster.getRowCount();
             for (int r = 0; r < rows; r++) {
-                Object eidObj = tblRoster.getValueAt(r, 0);
+                int lastCol = tblRoster.getColumnCount() - 1;
+                Object eidObj = tblRoster.getValueAt(r, lastCol);
                 if (eidObj == null)
                     continue;
                 int enrollmentId = (int) eidObj;
@@ -288,5 +585,30 @@ public class InstructorDashboard extends JFrame {
         } catch (Exception ex) {
             Ui.msgError(this, ex.getMessage());
         }
+    }
+
+    private JPanel settingsPanel() {
+        JPanel p = new JPanel(new BorderLayout());
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBorder(new EmptyBorder(10, 20, 0, 20));
+        JLabel title = Ui.createLabelBold("Settings");
+        JLabel subtitle = Ui.createLabel("Account and preferences");
+        title.setHorizontalAlignment(SwingConstants.LEFT);
+        subtitle.setHorizontalAlignment(SwingConstants.LEFT);
+        header.add(title, BorderLayout.NORTH);
+        header.add(subtitle, BorderLayout.SOUTH);
+
+        JPanel center = new JPanel(new GridBagLayout());
+        center.setBackground(Ui.BG_LIGHT);
+        JPanel box = new JPanel(new GridLayout(3, 1, 8, 8));
+        box.setBorder(new EmptyBorder(12, 12, 12, 12));
+        JButton btnChange = Ui.button("Change Password", this::showChangePasswordDialog);
+        box.add(btnChange);
+        box.add(Ui.createLabel("Other preferences will appear here."));
+        center.add(box);
+
+        p.add(header, BorderLayout.NORTH);
+        p.add(center, BorderLayout.CENTER);
+        return p;
     }
 }

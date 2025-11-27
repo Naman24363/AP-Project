@@ -67,140 +67,46 @@ public class StudentHome extends JFrame {
     }
 
     private JPanel createContentPanel() {
-        JPanel content = new JPanel();
-        content.setOpaque(false);
-        content.setLayout(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(15, 15, 15, 15);
-        gbc.fill = GridBagConstraints.BOTH;
+        JPanel wrap = new JPanel(new GridBagLayout());
+        wrap.setOpaque(false);
 
-        // Create button cards
-        JPanel card1 = createButtonCard(
-                "📚 Course Catalog",
-                "Browse available courses\nand register for sections",
-                () -> openCatalog());
+        JPanel card = Ui.createPanel(new BorderLayout(), Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0, 0, 0, 20), 1),
+                BorderFactory.createEmptyBorder(18, 18, 18, 18)));
 
-        JPanel card2 = createButtonCard(
-                "✓ My Registrations",
-                "View your registered courses\nand drop sections",
-                () -> openRegistrations());
+        JPanel grid = new JPanel(new GridLayout(2, 3, 16, 16));
+        grid.setOpaque(false);
 
-        JPanel card3 = createButtonCard(
-                "📅 My Timetable",
-                "View your course schedule\nand timings",
-                () -> openTimetable());
+        JButton bCatalog = Ui.tileButton("Course Catalog", this::openCatalog);
+        JButton bRegs = Ui.tileButton("My Registrations", this::openRegistrations);
+        JButton bTime = Ui.tileButton("My Timetable", this::openTimetable);
+        JButton bGrades = Ui.tileButton("My Grades", this::openGrades);
+        JButton bTrans = Ui.tileButton("View Grades", this::openTranscript);
+        JButton bSettings = Ui.tileButton("Settings", this::openSettings);
 
-        JPanel card4 = createButtonCard(
-                "📊 My Grades",
-                "View your course grades\nand transcript",
-                () -> openGrades());
+        Dimension smallTile = new Dimension(300, 140);
+        bCatalog.setPreferredSize(smallTile);
+        bRegs.setPreferredSize(smallTile);
+        bTime.setPreferredSize(smallTile);
+        bGrades.setPreferredSize(smallTile);
+        bTrans.setPreferredSize(smallTile);
+        bSettings.setPreferredSize(smallTile);
 
-        JPanel card5 = createButtonCard(
-                "📄 Transcript",
-                "Export your academic\ntranscript",
-                () -> openTranscript());
+        grid.add(bCatalog);
+        grid.add(bRegs);
+        grid.add(bTime);
+        grid.add(bGrades);
+        grid.add(bTrans);
+        grid.add(bSettings);
 
-        JPanel card6 = createButtonCard(
-                "⚙ Settings",
-                "Manage your account\nsettings",
-                () -> openSettings());
+        card.add(grid, BorderLayout.CENTER);
 
-        // Layout cards in a 2x3 grid
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weightx = 1;
-        gbc.weighty = 1;
-        content.add(card1, gbc);
-
-        gbc.gridx = 1;
-        content.add(card2, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        content.add(card3, gbc);
-
-        gbc.gridx = 1;
-        content.add(card4, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        content.add(card5, gbc);
-
-        gbc.gridx = 1;
-        content.add(card6, gbc);
-
-        return content;
+        wrap.add(card);
+        return wrap;
     }
 
-    private JPanel createButtonCard(String title, String description, Runnable action) {
-        JPanel card = new JPanel() {
-            private static final long serialVersionUID = 1L;
-
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                int arc = 15;
-                int w = getWidth();
-                int h = getHeight();
-                // fill background
-                g2.setColor(Color.WHITE);
-                g2.fillRoundRect(0, 0, w, h, arc, arc);
-                // draw border
-                g2.setColor(new Color(220, 220, 220));
-                g2.setStroke(new BasicStroke(1.5f));
-                g2.drawRoundRect(0, 0, Math.max(0, w - 1), Math.max(0, h - 1), arc, arc);
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-        card.setOpaque(false);
-        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
-        card.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        // Title
-        JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        titleLabel.setForeground(new Color(41, 128, 185));
-        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        // Description
-        JLabel descLabel = new JLabel("<html><center>" + description + "</center></html>");
-        descLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        descLabel.setForeground(new Color(100, 100, 100));
-        descLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        card.add(Box.createVerticalStrut(10));
-        card.add(titleLabel);
-        card.add(Box.createVerticalStrut(12));
-        card.add(descLabel);
-        card.add(Box.createVerticalGlue());
-
-        // Add mouse listener for hover effect
-        card.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent e) {
-                card.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(new Color(41, 128, 185), 2),
-                        BorderFactory.createEmptyBorder(25, 25, 25, 25)));
-                card.setBackground(new Color(245, 250, 255));
-            }
-
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent e) {
-                card.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
-                card.setBackground(Color.WHITE);
-            }
-
-            @Override
-            public void mouseClicked(java.awt.event.MouseEvent e) {
-                action.run();
-            }
-        });
-
-        return card;
-    }
+    // Using Ui.tileButton for consistent look with Admin/Instructor dashboards
 
     private void openCatalog() {
         StudentDashboard dash = new StudentDashboard(session);
@@ -225,14 +131,14 @@ public class StudentHome extends JFrame {
 
     private void openGrades() {
         StudentDashboard dash = new StudentDashboard(session);
-        dash.selectTab(3); // Transcript tab
+        dash.selectTab(3); // View Grades tab
         dash.setVisible(true);
         dispose();
     }
 
     private void openTranscript() {
         StudentDashboard dash = new StudentDashboard(session);
-        dash.selectTab(3); // Transcript tab
+        dash.selectTab(3); // View Grades tab
         dash.setVisible(true);
         dispose();
     }

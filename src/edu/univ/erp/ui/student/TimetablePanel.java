@@ -1,8 +1,10 @@
 package edu.univ.erp.ui.student;
 
 import edu.univ.erp.auth.Session;
+import edu.univ.erp.service.StudentService;
 import edu.univ.erp.util.Ui;
 import java.awt.*;
+import java.sql.SQLException;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
@@ -14,7 +16,8 @@ public class TimetablePanel extends JPanel {
         this.session = session;
         setLayout(new BorderLayout(8, 8));
 
-        String[] cols = new String[] { "Time", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+        // Remove the left Time column; keep only day columns
+        String[] cols = new String[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
 
         DefaultTableModel model = new DefaultTableModel(cols, 0) {
             @Override
@@ -23,47 +26,85 @@ public class TimetablePanel extends JPanel {
             }
         };
 
-        // Time rows (ordered) — fill cells with strings where schedule exists
-        String[][] rows = new String[][] {
-                { "8:30–9:30", "", "", "Tut OS (C101 Sec A, C201 Sec B)", "", "", "" },
-                { "8:30–10:30", "DM (B003)\nDS (C102)\nCTD (A006)", "", "DM (B003)\nDS (C102)\nCTD (A006)", "", "",
-                        "" },
-                { "8:30–11:30", "", "Lab ELD (A006)", "", "Lab GMB + IQB (L320,L321)\nLab RMSSD (C01)", "", "" },
-                { "9:00–10:00", "", "RA-I (C21)", "", "RA-I (C21)", "", "" },
-                { "9:30–10:30", "", "", "DM (B003)\nDS (C102)\nCTD (A006)", "", "S&S (C102)\nFOB II (B003)", "" },
-                { "10:00–10:30", "", "Slot 1", "", "Slot 1", "", "" },
-                { "10:30–11:30", "Slot 4", "", "Slot 4", "", "", "" },
-                { "11:00–12:00", "DPP (A106)\nELD (A006)", "FOE (C212)\nRMSSD (C11)\nIQB (A006)",
-                        "S&S (C102)\nFOB II (B003)", "DPP (A106)\nELD (A006)", "RMSSD (C11)\nIQB (A006)\nFOE (C212)",
-                        "" },
-                { "12:00–12:30", "Slot 2", "", "", "", "", "" },
-                { "1:00–2:30", "", "", "", "Tut M-III (A007,B105,A006,...)", "", "" },
-                { "1:30–2:30", "", "Tut NT (C03,C13)", "", "", "DPP Practice (A106)", "" },
-                { "1:30–3:30", "Tut DS (All Groups) – C03,C13,C22,C24,...", "", "Tut AP (All Groups) – (many groups)",
-                        "", "", "Lab CTD (L302,L303)" },
-                { "2:00–3:00", "Tut CTD (C210,C211,...)\nTut DM (C01,C11)", "", "", "", "", "" },
-                { "2:30–3:30", "", "", "", "Tut RA-I (C22,C24,C03,C13)", "", "" },
-                { "3:00–4:00", "OS-A (C201)\nOS-B (C102)", "NT (C12)\nAP (B003)", "OS-A (C201)\nOS-B (C101)",
-                        "NT (C12)\nAP (B003)", "", "" },
-                { "3:30–4:30", "", "", "", "", "Faculty Meeting Slot", "" },
-                { "4:00–5:00", "", "M-III Sec A (C201)\nM-III Sec B (B003)", "SOE (C02)",
-                        "M-III Sec A (C201)\nM-III Sec B (B003)", "", "" },
-                { "4:00–5:30", "SOE (C02)", "", "", "", "", "" },
-                { "4:30–6:00", "", "", "", "", "", "Seminar Slot" },
-                { "5:00–5:30", "", "SPP (C21)", "", "SPP (C21)", "", "" }
-        };
+        // Time rows (ordered) — base rows with empty day cells; we'll populate from DB
+        String[] times = new String[] { "8:30–9:30", "8:30–10:30", "8:30–11:30", "9:00–10:00", "9:30–10:30",
+                "10:00–10:30", "10:30–11:30", "11:00–12:00", "12:00–12:30", "1:00–2:30", "1:30–2:30",
+                "1:30–3:30", "2:00–3:00", "2:30–3:30", "3:00–4:00", "3:30–4:30", "4:00–5:00", "4:00–5:30",
+                "4:30–6:00", "5:00–5:30" };
 
-        for (String[] r : rows)
-            model.addRow(r);
+        for (String t : times) {
+            Object[] row = new Object[6];
+            // no time label column; keep only day cells
+            for (int i = 0; i < 6; i++)
+                row[i] = "";
+            model.addRow(row);
+        }
+
+        // populate from student's registrations
+        StudentService studentSvc = new StudentService();
+        try {
+            DefaultTableModel regs = studentSvc.myRegistrations(session.userId);
+            // prepare numeric start minutes for timetable rows
+            int[] slotStarts = new int[times.length];
+            for (int i = 0; i < times.length; i++) {
+                slotStarts[i] = parseStartMinutes(times[i]);
+            }
+            for (int r = 0; r < regs.getRowCount(); r++) {
+                // StudentService.myRegistrations currently returns columns:
+                // 0: Enrollment ID, 1: Instructor, 2: Section ID, 3: Code, 4: Title,
+                // 5: Day/Time, 6: Room, 7: Status
+                String dayTime = (String) regs.getValueAt(r, 5); // Day/Time
+                String room = (String) regs.getValueAt(r, 6); // Room
+                String code = String.valueOf(regs.getValueAt(r, 3));
+                String title = String.valueOf(regs.getValueAt(r, 4));
+                String display = code + " " + title + (room == null || room.isEmpty() ? "" : " (" + room + ")");
+
+                if (dayTime == null)
+                    continue;
+                String norm = dayTime == null ? "" : dayTime.toLowerCase();
+                // for each day column, check if dayTime mentions the day
+                String[] days = new String[] { "mon", "tue", "wed", "thu", "fri", "sat" };
+                // parse start minutes from the registration dayTime
+                int regStart = parseStartMinutes(dayTime);
+                for (int dc = 0; dc < days.length; dc++) {
+                    String d = days[dc];
+                    if (norm.contains(d) || norm.contains(fullDayName(d))) {
+                        // find best matching time row by numeric proximity
+                        int bestIdx = -1;
+                        int bestDiff = Integer.MAX_VALUE;
+                        for (int tr = 0; tr < times.length; tr++) {
+                            int slot = slotStarts[tr];
+                            if (slot <= 0)
+                                continue;
+                            int diff = Math.abs(slot - regStart);
+                            if (diff < bestDiff) {
+                                bestDiff = diff;
+                                bestIdx = tr;
+                            }
+                        }
+                        if (bestIdx >= 0 && bestDiff <= 60) { // within 60 minutes
+                            Object cur = model.getValueAt(bestIdx, dc);
+                            String slotTime = times[bestIdx];
+                            String entry = display
+                                    + (slotTime == null || slotTime.isEmpty() ? "" : "  (" + slotTime + ")");
+                            String newVal = (cur == null || cur.toString().isEmpty()) ? entry
+                                    : cur.toString() + "\n" + entry;
+                            model.setValueAt(newVal, bestIdx, dc);
+                        }
+                    }
+                }
+            }
+        } catch (SQLException ex) {
+            System.err.println("Failed to load registrations for timetable: " + ex.getMessage());
+        }
 
         // build continuation map: if a day column has identical content in consecutive
-        // rows,
-        // mark the later rows as continuation so renderer can hide the top border
+        // rows, mark the later rows as continuation so renderer can hide the top border
         // (visual merge)
         int rowCount = model.getRowCount();
         int colCount = model.getColumnCount();
         boolean[][] continuation = new boolean[rowCount][colCount];
-        for (int c = 1; c < colCount; c++) {
+        for (int c = 0; c < colCount; c++) {
             for (int r = 0; r < rowCount - 1; r++) {
                 Object cur = model.getValueAt(r, c);
                 Object nxt = model.getValueAt(r + 1, c);
@@ -85,8 +126,7 @@ public class TimetablePanel extends JPanel {
         table.setRowHeight(48);
 
         // column widths
-        table.getColumnModel().getColumn(0).setPreferredWidth(120);
-        for (int i = 1; i < table.getColumnCount(); i++)
+        for (int i = 0; i < table.getColumnCount(); i++)
             table.getColumnModel().getColumn(i).setPreferredWidth(260);
 
         JScrollPane sp = new JScrollPane(table);
@@ -116,6 +156,62 @@ public class TimetablePanel extends JPanel {
         }
         table.revalidate();
         table.repaint();
+    }
+
+    // Normalize day/time strings for simple matching: lower-case, normalize dashes,
+    // remove spaces
+    private String normalize(String s) {
+        if (s == null)
+            return "";
+        String r = s.replace('\u2013', '-').replace('\u2014', '-').replace('–', '-');
+        r = r.replaceAll("\\s+", "");
+        return r.toLowerCase();
+    }
+
+    private int parseStartMinutes(String s) {
+        if (s == null)
+            return -1;
+        // try to find hh:mm
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d{1,2}:\\d{2})").matcher(s);
+        if (m.find()) {
+            String t = m.group(1);
+            String[] parts = t.split(":");
+            try {
+                int h = Integer.parseInt(parts[0]);
+                int mm = Integer.parseInt(parts[1]);
+                return h * 60 + mm;
+            } catch (Exception e) {
+                return -1;
+            }
+        }
+        // fallback: lone number
+        m = java.util.regex.Pattern.compile("(\\d{1,2})").matcher(s);
+        if (m.find()) {
+            try {
+                return Integer.parseInt(m.group(1)) * 60;
+            } catch (Exception e) {
+                return -1;
+            }
+        }
+        return -1;
+    }
+
+    private String fullDayName(String abbr) {
+        switch (abbr.toLowerCase()) {
+            case "mon":
+                return "monday";
+            case "tue":
+                return "tuesday";
+            case "wed":
+                return "wednesday";
+            case "thu":
+                return "thursday";
+            case "fri":
+                return "friday";
+            case "sat":
+                return "saturday";
+        }
+        return abbr;
     }
 
     private static class MultiLineCellRenderer extends JTextArea implements TableCellRenderer {
