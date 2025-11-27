@@ -4,7 +4,6 @@ import edu.univ.erp.auth.PasswordHasher;
 
 public class GenerateAuthHash {
     public static void main(String[] args) {
-        // passwords for seeded accounts
         String[] users = { "admin1", "inst1", "stu1", "stu2" };
         String[] pw = { "admin123", "inst123", "student1", "student2" };
 

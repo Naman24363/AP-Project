@@ -20,11 +20,9 @@ public class StudentHome extends JFrame {
         mainPanel.setBackground(Ui.BG_LIGHT);
         mainPanel.setLayout(new BorderLayout());
 
-        // Header
         JPanel headerPanel = createHeaderPanel();
         mainPanel.add(headerPanel, BorderLayout.NORTH);
 
-        // Content area with buttons
         JPanel contentPanel = createContentPanel();
         mainPanel.add(contentPanel, BorderLayout.CENTER);
 
@@ -33,7 +31,7 @@ public class StudentHome extends JFrame {
 
     private JPanel createHeaderPanel() {
         JPanel header = new JPanel();
-        header.setBackground(new Color(41, 128, 185)); // Professional blue
+        header.setBackground(new Color(41, 128, 185));
         header.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         header.setLayout(new BorderLayout());
 
@@ -54,7 +52,7 @@ public class StudentHome extends JFrame {
 
         JButton btnLogout = new JButton("Logout");
         btnLogout.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        btnLogout.setBackground(new Color(231, 76, 60)); // Red
+        btnLogout.setBackground(new Color(231, 76, 60));
         btnLogout.setForeground(Color.WHITE);
         btnLogout.setFocusPainted(false);
         btnLogout.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
@@ -106,39 +104,37 @@ public class StudentHome extends JFrame {
         return wrap;
     }
 
-    // Using Ui.tileButton for consistent look with Admin/Instructor dashboards
-
     private void openCatalog() {
         StudentDashboard dash = new StudentDashboard(session);
-        dash.selectTab(0); // Catalog tab
+        dash.selectTab(0);
         dash.setVisible(true);
         dispose();
     }
 
     private void openRegistrations() {
         StudentDashboard dash = new StudentDashboard(session);
-        dash.selectTab(1); // My Registrations tab
+        dash.selectTab(1);
         dash.setVisible(true);
         dispose();
     }
 
     private void openTimetable() {
         StudentDashboard dash = new StudentDashboard(session);
-        dash.selectTab(2); // Timetable tab
+        dash.selectTab(2);
         dash.setVisible(true);
         dispose();
     }
 
     private void openGrades() {
         StudentDashboard dash = new StudentDashboard(session);
-        dash.selectTab(3); // View Grades tab
+        dash.selectTab(3);
         dash.setVisible(true);
         dispose();
     }
 
     private void openTranscript() {
         StudentDashboard dash = new StudentDashboard(session);
-        dash.selectTab(3); // View Grades tab
+        dash.selectTab(3);
         dash.setVisible(true);
         dispose();
     }

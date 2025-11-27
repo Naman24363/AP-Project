@@ -6,13 +6,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
-/**
- * Simple debug helper to verify seeded password hashes against expected test
- * passwords.
- * Run after compiling the project to check whether PasswordHasher.verify(...)
- * works
- * with the seeded values in the `users_auth` table.
- */
 public class PasswordDebug {
     public static void main(String[] args) {
         try (Connection c = AuthDb.get();

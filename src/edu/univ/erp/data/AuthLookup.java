@@ -3,9 +3,6 @@ package edu.univ.erp.data;
 import java.sql.*;
 import java.util.*;
 
-/**
- * Helper to fetch usernames from the Auth DB for given user IDs.
- */
 public class AuthLookup {
     public static Map<Integer, String> usernamesForIds(Set<Integer> ids) throws SQLException {
         Map<Integer, String> map = new HashMap<>();
@@ -14,7 +11,6 @@ public class AuthLookup {
 
         StringBuilder sb = new StringBuilder();
         sb.append("SELECT user_id, username FROM users_auth WHERE user_id IN (");
-        // build placeholders
         StringJoiner sj = new StringJoiner(",");
         for (int i = 0; i < ids.size(); i++)
             sj.add("?");

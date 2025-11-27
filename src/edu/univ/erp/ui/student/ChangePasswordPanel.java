@@ -30,7 +30,6 @@ public class ChangePasswordPanel extends JPanel {
                 BorderFactory.createLineBorder(Ui.DIVIDER, 1),
                 BorderFactory.createEmptyBorder(20, 20, 20, 20)));
 
-        // Title
         JLabel titleLabel = Ui.createLabelBold("Change Password");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
         titleLabel.setForeground(Ui.PRIMARY);
@@ -43,27 +42,23 @@ public class ChangePasswordPanel extends JPanel {
         contentPanel.add(subtitleLabel);
         contentPanel.add(Box.createVerticalStrut(20));
 
-        // Old Password
         contentPanel.add(createFormGroup(
                 "Current Password",
                 pfOldPassword = Ui.createPasswordField(25)));
 
         contentPanel.add(Box.createVerticalStrut(12));
 
-        // New Password
         contentPanel.add(createFormGroup(
                 "New Password",
                 pfNewPassword = Ui.createPasswordField(25)));
 
         contentPanel.add(Box.createVerticalStrut(8));
 
-        // Confirm Password
         contentPanel.add(createFormGroup(
                 "Confirm New Password",
                 pfConfirmPassword = Ui.createPasswordField(25)));
         contentPanel.add(Box.createVerticalStrut(20));
 
-        // Buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
         buttonPanel.setOpaque(false);
 
@@ -107,15 +102,11 @@ public class ChangePasswordPanel extends JPanel {
         return group;
     }
 
-    // Password strength checks removed per request: no composition/length
-    // restrictions
-
     private void changePassword() {
         String oldPassword = new String(pfOldPassword.getPassword());
         String newPassword = new String(pfNewPassword.getPassword());
         String confirmPassword = new String(pfConfirmPassword.getPassword());
 
-        // Validation
         if (oldPassword.isEmpty()) {
             Ui.msgError(this, "Please enter your current password.");
             return;
@@ -127,22 +118,18 @@ public class ChangePasswordPanel extends JPanel {
         }
 
         try {
-            // Verify old password
             if (!verifyOldPassword(oldPassword)) {
                 Ui.msgError(this, "Current password is incorrect.");
                 return;
             }
 
-            // Update password in database
             updatePasswordInDatabase(newPassword);
             Ui.msgSuccess(this, "Password changed successfully!");
 
-            // Clear fields
             pfOldPassword.setText("");
             pfNewPassword.setText("");
             pfConfirmPassword.setText("");
 
-            // Go back to home
             Timer timer = new Timer(1500, e -> {
                 JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
                 if (frame != null) {
@@ -181,6 +168,4 @@ public class ChangePasswordPanel extends JPanel {
             ps.executeUpdate();
         }
     }
-
-    // enum removed
 }

@@ -21,9 +21,8 @@ public class AuthDb {
             throw new SQLException("Database configuration missing or incomplete (check config/app.properties)");
         }
 
-        // set a short login timeout so UI doesn't appear to hang when DB is unreachable
         try {
-            DriverManager.setLoginTimeout(5); // seconds
+            DriverManager.setLoginTimeout(5);
         } catch (Exception ignored) {
         }
 

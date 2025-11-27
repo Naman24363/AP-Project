@@ -27,7 +27,6 @@ public class StudentDashboard extends JFrame {
 
         JPanel mainPanel = new JPanel(new BorderLayout());
 
-        // Top header (welcome + subtitle + logout) to match instructor style
         JPanel topBar = new JPanel(new BorderLayout());
         topBar.setBackground(new Color(41, 128, 185));
         topBar.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
@@ -82,9 +81,6 @@ public class StudentDashboard extends JFrame {
         }
     }
 
-    // Removed studentLandingPanel: students will now see Catalog as the first tab
-    // after login.
-
     private JPanel catalogPanel() {
         JPanel p = new JPanel(new BorderLayout());
         p.add(new JScrollPane(tblCatalog), BorderLayout.CENTER);
@@ -123,9 +119,6 @@ public class StudentDashboard extends JFrame {
                 return;
             }
             try {
-                // The table model keeps the internal enrollment_id as the first column
-                // but we remove that column from the view. Use model index conversion
-                // to fetch the enrollment id safely even when columns are hidden/sorted.
                 javax.swing.table.DefaultTableModel model = (javax.swing.table.DefaultTableModel) tblRegs.getModel();
                 int modelRow = tblRegs.convertRowIndexToModel(r);
                 int enrollmentId = (int) model.getValueAt(modelRow, 0);
@@ -184,16 +177,12 @@ public class StudentDashboard extends JFrame {
         try {
             javax.swing.table.DefaultTableModel m = student.myRegistrations(session.userId);
             tblRegs.setModel(m);
-            // hide the internal enrollment id column (column 0 in the model)
             try {
-                // If the first column is still visible in the view, remove it so users
-                // see 'Instructor' as the first visible column.
                 javax.swing.table.TableColumn col0 = tblRegs.getColumnModel().getColumn(0);
                 if ("Enrollment ID".equals(col0.getHeaderValue())) {
                     tblRegs.removeColumn(col0);
                 }
             } catch (Exception ex) {
-                // ignore if column already removed or inaccessible
             }
         } catch (SQLException e) {
             Ui.msgError(this, e.getMessage());

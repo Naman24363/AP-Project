@@ -51,7 +51,6 @@ public class PasswordHasher {
         return Base64.getEncoder().encodeToString(b);
     }
 
-    // Debug helper: compute the derived key bytes for a stored hash string
     public static byte[] pbkdf2ForDebug(String stored, String password) {
         String[] p = stored.split("\\$");
         if (p.length != 4 || !p[0].equals("PBKDF2"))

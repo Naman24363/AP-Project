@@ -28,7 +28,6 @@ public class InstructorDashboard extends JFrame {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        // Top header (welcome + subtitle + logout) to match app style
         JPanel topBar = new JPanel(new BorderLayout());
         topBar.setBackground(new Color(41, 128, 185));
         topBar.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
@@ -122,7 +121,6 @@ public class InstructorDashboard extends JFrame {
                 return;
             }
             try {
-                // verify current password using AuthDb
                 boolean ok = false;
                 try (java.sql.Connection conn = AuthDb.get();
                         java.sql.PreparedStatement ps = conn
@@ -140,7 +138,6 @@ public class InstructorDashboard extends JFrame {
                     return;
                 }
 
-                // update password
                 String newHash = PasswordHasher.hash(n);
                 try (java.sql.Connection conn = AuthDb.get();
                         java.sql.PreparedStatement ps = conn
@@ -220,7 +217,6 @@ public class InstructorDashboard extends JFrame {
         centerWrap.setBackground(Ui.BG_LIGHT);
         centerWrap.add(card);
 
-        // header above tiles
         JPanel header = new JPanel(new BorderLayout());
         header.setBorder(new EmptyBorder(10, 20, 0, 20));
         JLabel title = Ui.createLabelBold("Instructor Dashboard");
@@ -326,11 +322,9 @@ public class InstructorDashboard extends JFrame {
 
     private void loadRoster(int sectionId) {
         try {
-            // Load base (read-only) model from service
             DefaultTableModel base = instructor.roster(session, sectionId);
             int cols = base.getColumnCount();
 
-            // Collect student IDs from column index 1 (Student ID)
             java.util.Set<Integer> studentIds = new java.util.HashSet<>();
             for (int r = 0; r < base.getRowCount(); r++) {
                 Object idObj = base.getValueAt(r, 1);
@@ -348,29 +342,23 @@ public class InstructorDashboard extends JFrame {
             try {
                 names.putAll(edu.univ.erp.data.AuthLookup.usernamesForIds(studentIds));
             } catch (SQLException ex) {
-                // lookup failed, continue with numeric ids
                 System.err.println("Auth lookup failed: " + ex.getMessage());
             }
 
-            // Prepare column names: replace "Student ID" with "Student Name" and
-            // show Section ID instead of Enrollment ID. Keep the actual
-            // enrollment id in a hidden trailing column so save operations still
-            // have access to it.
             String[] colNames = new String[cols + 1];
             for (int i = 0; i < cols; i++) {
                 String n = base.getColumnName(i);
                 if ("Student ID".equalsIgnoreCase(n))
                     n = "Student Name";
                 if ("Enrollment ID".equalsIgnoreCase(n))
-                    n = "Section ID"; // visible header
+                    n = "Section ID";
                 colNames[i] = n;
             }
-            colNames[cols] = "_enrollment_id"; // hidden internal id column
+            colNames[cols] = "_enrollment_id";
 
             DefaultTableModel editable = new DefaultTableModel(colNames, 0) {
                 @Override
                 public boolean isCellEditable(int r, int c) {
-                    // Allow editing of Quiz, Midterm, EndSem (assumed columns 3,4,5)
                     return c == 3 || c == 4 || c == 5;
                 }
             };
@@ -380,11 +368,9 @@ public class InstructorDashboard extends JFrame {
                 for (int c = 0; c < cols; c++) {
                     Object val = base.getValueAt(r, c);
                     if (c == 0) {
-                        // base enrollment id: show sectionId in visible column
                         row[0] = sectionId;
-                        // keep actual enrollment id in hidden column at end
                         row[cols] = val;
-                    } else if (c == 1) { // student id -> student name
+                    } else if (c == 1) {
                         String name = "";
                         if (val instanceof Integer) {
                             name = names.getOrDefault((Integer) val, val.toString());
@@ -460,7 +446,6 @@ public class InstructorDashboard extends JFrame {
                 try {
                     instructor.saveScores(session, currentRosterSectionId, enrollmentId, quiz, midterm, endsem);
                 } catch (Exception ex) {
-                    // continue saving others but log the error
                     System.err.println("Failed to save enrollment " + enrollmentId + ": " + ex.getMessage());
                 }
             }
@@ -542,7 +527,6 @@ public class InstructorDashboard extends JFrame {
                     rsp.setPreferredSize(new Dimension(600, 300));
                     JOptionPane.showMessageDialog(this, rsp, "Import Results (" + ok + "/" + res.size() + ")",
                             JOptionPane.INFORMATION_MESSAGE);
-                    // reload roster and stats
                     loadRoster(sectionId);
                     loadStats(sectionId);
                 }
@@ -578,7 +562,6 @@ public class InstructorDashboard extends JFrame {
                 int ne = Integer.parseInt(fe.getText().trim());
                 instructor.setWeights(session, sectionId, nq, nm, ne);
                 Ui.msgSuccess(this, "Weights saved and finals recomputed.");
-                // reload roster and stats
                 loadRoster(sectionId);
                 loadStats(sectionId);
             }

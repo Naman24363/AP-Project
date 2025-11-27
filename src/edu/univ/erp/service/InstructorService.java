@@ -13,9 +13,6 @@ import javax.swing.table.DefaultTableModel;
 
 public class InstructorService {
 
-    /**
-     * Get all sections taught by the instructor.
-     */
     public DefaultTableModel mySections(int instructorUserId) throws SQLException {
         String[] cols = { "Section ID", "Code", "Title", "Day/Time", "Room", "Capacity", "Enrolled", "Semester",
                 "Year" };
@@ -40,15 +37,15 @@ public class InstructorService {
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     m.addRow(new Object[] {
-                            rs.getInt(1), // section_id
-                            rs.getString(2), // code
-                            rs.getString(3), // title
-                            rs.getString(4), // day_time
-                            rs.getString(5), // room
-                            rs.getInt(6), // capacity
-                            rs.getInt(7), // enrolled
-                            rs.getString(8), // semester
-                            rs.getInt(9) // year
+                            rs.getInt(1),
+                            rs.getString(2),
+                            rs.getString(3),
+                            rs.getString(4),
+                            rs.getString(5),
+                            rs.getInt(6),
+                            rs.getInt(7),
+                            rs.getString(8),
+                            rs.getInt(9)
                     });
                 }
             }
@@ -56,9 +53,6 @@ public class InstructorService {
         return m;
     }
 
-    /**
-     * Get roster for a section with all grades.
-     */
     public DefaultTableModel roster(Session s, int sectionId) throws SQLException {
         String[] cols = { "Enrollment ID", "Student ID", "Roll No", "Quiz", "Midterm", "EndSem", "Final" };
         DefaultTableModel m = new DefaultTableModel(cols, 0) {
@@ -68,7 +62,6 @@ public class InstructorService {
             }
         };
 
-        // enforce access: only instructor of this section or admin
         int instrId = findInstructorOf(sectionId);
         AccessControl.mustBeInstructorOf(s, instrId);
 
@@ -89,13 +82,13 @@ public class InstructorService {
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     m.addRow(new Object[] {
-                            rs.getInt(1), // enrollment_id
-                            rs.getInt(2), // student_user_id
-                            rs.getString(3), // roll_no
-                            rs.getObject(4), // quiz
-                            rs.getObject(5), // midterm
-                            rs.getObject(6), // endsem
-                            rs.getObject(7) // final_grade
+                            rs.getInt(1),
+                            rs.getInt(2),
+                            rs.getString(3),
+                            rs.getObject(4),
+                            rs.getObject(5),
+                            rs.getObject(6),
+                            rs.getObject(7)
                     });
                 }
             }
@@ -103,10 +96,6 @@ public class InstructorService {
         return m;
     }
 
-    /**
-     * Save or update scores for an enrollment.
-     * Uses the weighting rule: Quiz 20%, Midterm 30%, EndSem 50%.
-     */
     public void saveScores(Session s, int sectionId, int enrollmentId,
             Double quiz, Double midterm, Double endsem) throws SQLException {
         AccessControl.mustAllowWrite(s.role);
@@ -128,8 +117,7 @@ public class InstructorService {
                     insertScore(c, enrollmentId, "ENDSEM", endsem);
                 }
 
-                // Calculate final grade using stored weights (percentages)
-                double[] weights = getWeights(sectionId); // returns fractions summing to 1.0
+                double[] weights = getWeights(sectionId);
                 double q = quiz != null ? quiz : 0;
                 double m = midterm != null ? midterm : 0;
                 double e = endsem != null ? endsem : 0;
@@ -148,11 +136,6 @@ public class InstructorService {
         }
     }
 
-    /**
-     * Retrieve weight fractions for a section. Returns {quiz, midterm, endsem} as
-     * fractions (sum to 1.0).
-     * If no custom weights found, returns default 0.2,0.3,0.5
-     */
     public double[] getWeights(int sectionId) {
         String key = "weights_section_" + sectionId;
         String sql = "SELECT value FROM settings WHERE key = ?";
@@ -161,7 +144,6 @@ public class InstructorService {
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     String v = rs.getString(1);
-                    // expected format: "q,m,e" as integers or decimals representing percentages
                     String[] parts = v.split(",");
                     if (parts.length == 3) {
                         double q = Double.parseDouble(parts[0]) / 100.0;
@@ -180,10 +162,6 @@ public class InstructorService {
         return new double[] { 0.2, 0.3, 0.5 };
     }
 
-    /**
-     * Persist weights (percent integers) for a section. Must be called by an
-     * instructor or admin.
-     */
     public void setWeights(Session s, int sectionId, int qPercent, int mPercent, int ePercent) throws SQLException {
         AccessControl.mustAllowWrite(s.role);
         int instructorUserId = findInstructorOf(sectionId);
@@ -196,14 +174,9 @@ public class InstructorService {
             ps.setString(2, qPercent + "," + mPercent + "," + ePercent);
             ps.executeUpdate();
         }
-        // After updating weights, recompute finals for enrolled students
         recomputeFinals(s, sectionId);
     }
 
-    /**
-     * Recompute FINAL component for all enrollments in a section using stored
-     * weights.
-     */
     public void recomputeFinals(Session s, int sectionId) throws SQLException {
         AccessControl.mustAllowWrite(s.role);
         int instructorUserId = findInstructorOf(sectionId);
@@ -294,11 +267,7 @@ public class InstructorService {
         }
     }
 
-    /**
-     * Get class statistics (average, min, max for final grades).
-     */
     public DefaultTableModel classStats(Session s, int sectionId) throws SQLException {
-        // enforce access
         int instructorUserId = findInstructorOf(sectionId);
         AccessControl.mustBeInstructorOf(s, instructorUserId);
 
@@ -335,15 +304,10 @@ public class InstructorService {
         return m;
     }
 
-    /**
-     * Export grades as CSV file.
-     */
     public void exportGradesCsv(Session s, int sectionId, String filePath) throws Exception {
         int instructorUserId = findInstructorOf(sectionId);
         AccessControl.mustBeInstructorOf(s, instructorUserId);
 
-        // Avoid joining users_auth from ERP DB. Fetch student IDs and roll numbers,
-        // then resolve usernames from Auth DB before writing CSV.
         String sql = "SELECT s.user_id, s.roll_no, " +
                 "MAX(CASE WHEN g.component='QUIZ' THEN g.score END) AS quiz, " +
                 "MAX(CASE WHEN g.component='MIDTERM' THEN g.score END) AS midterm, " +
@@ -356,7 +320,6 @@ public class InstructorService {
                 "GROUP BY s.user_id, s.roll_no " +
                 "ORDER BY s.roll_no";
 
-        // Collect rows and student IDs
         List<Object[]> rows = new ArrayList<>();
         Set<Integer> studentIds = new HashSet<>();
         try (Connection c = ErpDb.get(); PreparedStatement ps = c.prepareStatement(sql)) {
@@ -393,13 +356,6 @@ public class InstructorService {
         }
     }
 
-    /**
-     * Import grades from a CSV file. Expected header containing either 'Roll No' or
-     * 'Username',
-     * and columns 'Quiz','Midterm','EndSem' (case-insensitive). Returns list of
-     * status messages
-     * (one per input row) describing success or error for that row.
-     */
     public java.util.List<String> importGradesCsv(Session s, int sectionId, String filePath) throws Exception {
         int instructorUserId = findInstructorOf(sectionId);
         AccessControl.mustBeInstructorOf(s, instructorUserId);
@@ -470,7 +426,6 @@ public class InstructorService {
                         continue;
                     }
 
-                    // find enrollment
                     Integer enrollmentId = null;
                     try (Connection c = ErpDb.get();
                             PreparedStatement ps = c.prepareStatement(
@@ -498,14 +453,12 @@ public class InstructorService {
                             ? Double.valueOf(parts.get(idxEnd).trim())
                             : null;
 
-                    // validate ranges if provided
                     if ((quiz != null && (quiz < 0 || quiz > 100)) || (mid != null && (mid < 0 || mid > 100))
                             || (end != null && (end < 0 || end > 100))) {
                         results.add("Line " + lineno + ": invalid score (must be 0-100)");
                         continue;
                     }
 
-                    // call saveScores to persist and compute final
                     saveScores(s, sectionId, enrollmentId, quiz, mid, end);
                     results.add("Line " + lineno + ": OK");
                 } catch (Exception ex) {
@@ -551,12 +504,6 @@ public class InstructorService {
         return out;
     }
 
-    /**
-     * Preview CSV import: parse rows and resolve student/enrollment info but do not
-     * persist.
-     * Returns rows as String[]: {Roll, Username, StudentId, Enrolled(YES/NO), Quiz,
-     * Midterm, EndSem, Error}
-     */
     public java.util.List<String[]> previewGradesCsv(Session s, int sectionId, String filePath) throws Exception {
         int instructorUserId = findInstructorOf(sectionId);
         AccessControl.mustBeInstructorOf(s, instructorUserId);

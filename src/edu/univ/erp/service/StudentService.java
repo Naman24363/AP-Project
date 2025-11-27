@@ -10,8 +10,6 @@ import javax.swing.table.DefaultTableModel;
 
 public class StudentService {
     public DefaultTableModel myRegistrations(int studentUserId) throws SQLException {
-        // We'll include the internal enrollment_id in the model (hidden in the UI)
-        // and display the instructor name as the visible first column.
         String[] cols = { "Enrollment ID", "Instructor", "Section ID", "Code", "Title", "Day/Time", "Room", "Status" };
         DefaultTableModel m = new DefaultTableModel(cols, 0) {
             @Override
@@ -25,7 +23,6 @@ public class StudentService {
                 "FROM enrollments e JOIN sections s ON e.section_id=s.section_id " +
                 "JOIN courses c ON s.course_id=c.course_id WHERE e.student_user_id=? ORDER BY c.code";
 
-        // Collect rows and instructor ids to resolve usernames from Auth DB
         java.util.List<Object[]> rows = new java.util.ArrayList<>();
         java.util.Set<Integer> instrIds = new java.util.HashSet<>();
 
@@ -37,8 +34,8 @@ public class StudentService {
                     if (instr != null)
                         instrIds.add(instr);
                     rows.add(new Object[] {
-                            rs.getInt(1), // enrollment_id
-                            instr, // instructor_user_id placeholder
+                            rs.getInt(1),
+                            instr,
                             rs.getInt(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6),
                             rs.getString(7)
                     });
@@ -46,7 +43,6 @@ public class StudentService {
             }
         }
 
-        // Resolve instructor usernames from Auth DB
         java.util.Map<Integer, String> names = new java.util.HashMap<>();
         try {
             names = edu.univ.erp.data.AuthLookup.usernamesForIds(instrIds);

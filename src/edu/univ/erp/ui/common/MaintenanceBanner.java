@@ -10,7 +10,7 @@ public class MaintenanceBanner extends JPanel {
 
     public MaintenanceBanner() {
         setLayout(new BorderLayout(10, 0));
-        setBackground(new Color(255, 193, 7)); // Amber/Warning color
+        setBackground(new Color(255, 193, 7));
         setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
 
         iconLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));

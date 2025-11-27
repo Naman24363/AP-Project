@@ -30,14 +30,10 @@ public class LoginFrame extends JFrame {
         setLocationRelativeTo(null);
         setResizable(true);
 
-        // (topBanner removed) Title label will be shown inside the centered login box
-
-        // Login form panel — centered box with a visible border
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setOpaque(false);
         formPanel.setBorder(new EmptyBorder(30, 16, 30, 16));
 
-        // Inner box (fixed max width) that will contain the labels, fields and buttons
         JPanel inner = new JPanel() {
             private static final long serialVersionUID = 1L;
 
@@ -48,10 +44,8 @@ public class LoginFrame extends JFrame {
                 int arc = 18;
                 int w = getWidth();
                 int h = getHeight();
-                // fill background rounded
                 g2.setColor(Color.WHITE);
                 g2.fillRoundRect(0, 0, w, h, arc, arc);
-                // draw border
                 g2.setColor(new Color(224, 224, 224));
                 g2.setStroke(new BasicStroke(1f));
                 g2.drawRoundRect(0, 0, Math.max(0, w - 1), Math.max(0, h - 1), arc, arc);
@@ -61,15 +55,10 @@ public class LoginFrame extends JFrame {
         };
         inner.setLayout(new BoxLayout(inner, BoxLayout.Y_AXIS));
         inner.setOpaque(false);
-        // keep padding inside the rounded panel
         inner.setBorder(new EmptyBorder(20, 36, 20, 36));
-        // Limit width so it looks like a box, even on very wide screens
         inner.setMaximumSize(new Dimension(600, Integer.MAX_VALUE));
 
-        // Title label (will be moved into the centered login box)
         JLabel titleLabel = new JLabel("IIIT DELHI ERP");
-        // Attempt to load Oswald from bundled font files (put TTFs under
-        // src/main/resources/fonts)
         Font headerFont = null;
         String[] candidates = { "/fonts/Oswald-Bold.ttf", "/fonts/Oswald-SemiBold.ttf", "/fonts/Oswald-Regular.ttf" };
         for (String c : candidates) {
@@ -80,11 +69,9 @@ public class LoginFrame extends JFrame {
                     break;
                 }
             } catch (Exception ex) {
-                // ignore and try next candidate
             }
         }
         if (headerFont == null) {
-            // fallback: try OS-installed Oswald, otherwise Segoe UI
             try {
                 headerFont = new Font("Oswald", Font.BOLD, 40);
             } catch (Exception ex) {
@@ -93,12 +80,10 @@ public class LoginFrame extends JFrame {
         }
         titleLabel.setFont(headerFont);
         titleLabel.setForeground(Color.BLACK);
-        // Place the title at the top of the inner (centered) login box
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         inner.add(titleLabel);
         inner.add(Box.createVerticalStrut(12));
 
-        // Username
         JLabel userLabel = Ui.createLabelBold("Username:");
         userLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         inner.add(userLabel);
@@ -110,7 +95,6 @@ public class LoginFrame extends JFrame {
         inner.add(txtUser);
         inner.add(Box.createVerticalStrut(15));
 
-        // Password
         JLabel passLabel = Ui.createLabelBold("Password:");
         passLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         inner.add(passLabel);
@@ -121,7 +105,6 @@ public class LoginFrame extends JFrame {
         inner.add(txtPass);
         inner.add(Box.createVerticalStrut(20));
 
-        // Buttons panel
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
         buttonPanel.setBackground(Color.WHITE);
         JButton btnLogin = Ui.button("  Login  ", this::doLogin);
@@ -132,7 +115,6 @@ public class LoginFrame extends JFrame {
         buttonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, buttonPanel.getPreferredSize().height));
         inner.add(buttonPanel);
 
-        // Footer with info
         JPanel footerPanel = new JPanel();
         footerPanel.setBackground(Ui.BG_LIGHT);
         footerPanel.setBorder(new EmptyBorder(10, 16, 10, 16));
@@ -140,10 +122,8 @@ public class LoginFrame extends JFrame {
         infoLabel.setFont(new Font("Segoe UI", Font.ITALIC, 10));
         infoLabel.setForeground(Ui.TEXT_LIGHT);
         footerPanel.add(infoLabel);
-        // Add inner to centered outer panel
         formPanel.add(inner, new GridBagConstraints());
 
-        // Use a background panel that paints an image; place UI components on top
         BackgroundPanel bgPanel = new BackgroundPanel();
         bgPanel.setLayout(new BorderLayout());
         bgPanel.add(banner, BorderLayout.NORTH);
@@ -151,7 +131,6 @@ public class LoginFrame extends JFrame {
         bgPanel.add(footerPanel, BorderLayout.SOUTH);
         setContentPane(bgPanel);
 
-        // Enable Enter key for login
         txtPass.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -162,17 +141,11 @@ public class LoginFrame extends JFrame {
         });
     }
 
-    /**
-     * Simple panel that will draw a background image
-     * Try classpath resource `/images/login_bg.jpg` first, then
-     * `resources/login_bg.jpg` on disk.
-     */
     private class BackgroundPanel extends JPanel {
         private BufferedImage bgImage;
 
         BackgroundPanel() {
             try {
-                // Try the image from the root directory
                 File rootImage = new File("WhatsApp Image 2025-11-26 at 19.23.27_9b7e1506.jpg");
                 if (rootImage.exists()) {
                     try {
@@ -184,7 +157,6 @@ public class LoginFrame extends JFrame {
                     }
                 }
 
-                // Next try classpath resource
                 if (bgImage == null) {
                     InputStream is = getClass().getResourceAsStream("/images/login_bg.jpg");
                     if (is != null) {
@@ -194,7 +166,6 @@ public class LoginFrame extends JFrame {
                     }
                 }
 
-                // Lastly try repository resource path
                 if (bgImage == null) {
                     File f = new File("resources/login_bg.jpg");
                     if (f.exists()) {
@@ -219,10 +190,8 @@ public class LoginFrame extends JFrame {
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             if (bgImage != null) {
-                // Draw the image stretched to fill the entire panel
                 g.drawImage(bgImage, 0, 0, getWidth(), getHeight(), this);
             } else {
-                // Visible debug hint so you know loading failed
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setColor(new Color(0, 0, 0, 60));
                 g2.fillRect(0, 0, getWidth(), getHeight());
@@ -264,7 +233,6 @@ public class LoginFrame extends JFrame {
             dash.setVisible(true);
             dispose();
         } catch (Exception e) {
-            // show full error and log stack for debugging
             String msg = e.getMessage();
             System.err.println("LoginFrame: login failed: " + msg);
             e.printStackTrace(System.err);

@@ -106,9 +106,6 @@ public class AdminService {
         }
     }
 
-    /**
-     * Return next available user_id for Auth DB (max(user_id)+1).
-     */
     public int nextUserId() throws SQLException {
         try (Connection c = AuthDb.get();
                 PreparedStatement ps = c.prepareStatement("SELECT COALESCE(MAX(user_id),0)+1 FROM users_auth")) {
@@ -120,9 +117,6 @@ public class AdminService {
         throw new SQLException("Could not determine next user id");
     }
 
-    /**
-     * Return map of instructor user_id -> username for all instructors.
-     */
     public java.util.Map<Integer, String> getAllInstructors() throws SQLException {
         java.util.Map<Integer, String> map = new java.util.HashMap<>();
         java.util.List<Integer> ids = new java.util.ArrayList<>();
@@ -133,12 +127,10 @@ public class AdminService {
         }
         if (ids.isEmpty())
             return map;
-        // resolve usernames from Auth DB
         java.util.Set<Integer> idset = new java.util.HashSet<>(ids);
         try {
             map.putAll(edu.univ.erp.data.AuthLookup.usernamesForIds(idset));
         } catch (SQLException e) {
-            // ignore lookup failure; return empty map
             System.err.println("Auth lookup failed: " + e.getMessage());
         }
         return map;
@@ -146,7 +138,6 @@ public class AdminService {
 
     public void deleteCourse(Session s, int courseId) throws SQLException {
         AccessControl.mustBeAdmin(s);
-        // Prevent deleting courses that have sections
         try (Connection c = ErpDb.get();
                 PreparedStatement ps = c.prepareStatement("SELECT COUNT(*) FROM sections WHERE course_id = ?")) {
             ps.setInt(1, courseId);
@@ -167,7 +158,6 @@ public class AdminService {
 
     public void deleteInstructor(Session s, int instructorUserId) throws SQLException {
         AccessControl.mustBeAdmin(s);
-        // Prevent deleting instructor if assigned to sections
         try (Connection c = ErpDb.get();
                 PreparedStatement ps = c
                         .prepareStatement("SELECT COUNT(*) FROM sections WHERE instructor_user_id = ?")) {
@@ -179,13 +169,11 @@ public class AdminService {
                 }
             }
         }
-        // delete instructor profile
         try (Connection c = ErpDb.get();
                 PreparedStatement ps = c.prepareStatement("DELETE FROM instructors WHERE user_id = ?")) {
             ps.setInt(1, instructorUserId);
             ps.executeUpdate();
         }
-        // delete auth user
         try (Connection c = AuthDb.get();
                 PreparedStatement ps = c.prepareStatement("DELETE FROM users_auth WHERE user_id = ?")) {
             ps.setInt(1, instructorUserId);
@@ -193,9 +181,6 @@ public class AdminService {
         }
     }
 
-    /**
-     * Return a list of section ids assigned to the given instructor.
-     */
     public java.util.List<Integer> getSectionsForInstructor(int instructorUserId) throws SQLException {
         java.util.List<Integer> list = new java.util.ArrayList<>();
         String sql = "SELECT section_id FROM sections WHERE instructor_user_id = ? ORDER BY section_id";
@@ -209,9 +194,6 @@ public class AdminService {
         return list;
     }
 
-    /**
-     * Return a list of section ids for the given course.
-     */
     public java.util.List<Integer> getSectionsForCourse(int courseId) throws SQLException {
         java.util.List<Integer> list = new java.util.ArrayList<>();
         String sql = "SELECT section_id FROM sections WHERE course_id = ? ORDER BY section_id";
@@ -225,11 +207,6 @@ public class AdminService {
         return list;
     }
 
-    /**
-     * Unassign the instructor from all their sections (set instructor_user_id =
-     * NULL).
-     * Returns the number of sections updated.
-     */
     public int unassignInstructorFromSections(Session s, int instructorUserId) throws SQLException {
         AccessControl.mustBeAdmin(s);
         try (Connection c = ErpDb.get();
@@ -241,12 +218,8 @@ public class AdminService {
         }
     }
 
-    /**
-     * Delete a section by id. Prevent deletion if there are enrollments.
-     */
     public void deleteSection(Session s, int sectionId) throws SQLException {
         AccessControl.mustBeAdmin(s);
-        // prevent deleting sections with enrollments
         try (Connection c = ErpDb.get();
                 PreparedStatement ps = c.prepareStatement("SELECT COUNT(*) FROM enrollments WHERE section_id = ?")) {
             ps.setInt(1, sectionId);
@@ -256,14 +229,12 @@ public class AdminService {
                 }
             }
         }
-        // delete any per-section settings (weights)
         String key = "weights_section_" + sectionId;
         try (Connection c = ErpDb.get();
                 PreparedStatement ps = c.prepareStatement("DELETE FROM settings WHERE key = ?")) {
             ps.setString(1, key);
             ps.executeUpdate();
         }
-        // delete the section row
         try (Connection c = ErpDb.get();
                 PreparedStatement ps = c.prepareStatement("DELETE FROM sections WHERE section_id = ?")) {
             ps.setInt(1, sectionId);
@@ -273,24 +244,18 @@ public class AdminService {
         }
     }
 
-    /**
-     * Remove all enrollments (and their grades) for a given section.
-     * Returns the number of enrollments deleted.
-     */
     public int removeEnrollmentsForSection(Session s, int sectionId) throws SQLException {
         AccessControl.mustBeAdmin(s);
         try (Connection c = ErpDb.get()) {
             boolean old = c.getAutoCommit();
             c.setAutoCommit(false);
             try {
-                // delete grades tied to enrollments in this section
                 try (PreparedStatement ps = c.prepareStatement(
                         "DELETE FROM grades WHERE enrollment_id IN (SELECT enrollment_id FROM enrollments WHERE section_id = ?)")) {
                     ps.setInt(1, sectionId);
                     ps.executeUpdate();
                 }
 
-                // delete enrollments for the section
                 try (PreparedStatement ps = c.prepareStatement("DELETE FROM enrollments WHERE section_id = ?")) {
                     ps.setInt(1, sectionId);
                     int removed = ps.executeUpdate();
@@ -306,14 +271,8 @@ public class AdminService {
         }
     }
 
-    /**
-     * Delete all sections for a given course. Prevents deletion if any section has
-     * enrollments.
-     * Returns the number of sections deleted.
-     */
     public int deleteSectionsForCourse(Session s, int courseId) throws SQLException {
         AccessControl.mustBeAdmin(s);
-        // prevent deleting sections with enrollments
         try (Connection c = ErpDb.get();
                 PreparedStatement ps = c.prepareStatement(
                         "SELECT COUNT(*) FROM enrollments WHERE section_id IN (SELECT section_id FROM sections WHERE course_id = ?)")) {
@@ -325,13 +284,11 @@ public class AdminService {
             }
         }
 
-        // get all section ids for this course
         java.util.List<Integer> sectionIds = getSectionsForCourse(courseId);
         if (sectionIds.isEmpty()) {
             return 0;
         }
 
-        // delete per-section settings for all sections
         try (Connection c = ErpDb.get()) {
             for (Integer sectionId : sectionIds) {
                 String key = "weights_section_" + sectionId;
@@ -342,7 +299,6 @@ public class AdminService {
             }
         }
 
-        // delete all sections for this course
         try (Connection c = ErpDb.get();
                 PreparedStatement ps = c.prepareStatement("DELETE FROM sections WHERE course_id = ?")) {
             ps.setInt(1, courseId);
@@ -350,37 +306,27 @@ public class AdminService {
         }
     }
 
-    /**
-     * Purge all sections and courses (and related per-section settings,
-     * enrollments, grades).
-     * This is destructive and runs in a single transaction.
-     */
     public void purgeAllCoursesAndSections(Session s) throws SQLException {
         AccessControl.mustBeAdmin(s);
         try (Connection c = ErpDb.get()) {
             boolean oldAuto = c.getAutoCommit();
             c.setAutoCommit(false);
             try {
-                // remove per-section settings
                 try (PreparedStatement ps = c
                         .prepareStatement("DELETE FROM settings WHERE key LIKE 'weights_section_%'")) {
                     ps.executeUpdate();
                 }
-                // delete grades tied to enrollments in any section
                 try (PreparedStatement ps = c.prepareStatement(
                         "DELETE FROM grades WHERE enrollment_id IN (SELECT enrollment_id FROM enrollments WHERE section_id IN (SELECT section_id FROM sections))")) {
                     ps.executeUpdate();
                 }
-                // delete enrollments for sections
                 try (PreparedStatement ps = c.prepareStatement(
                         "DELETE FROM enrollments WHERE section_id IN (SELECT section_id FROM sections)")) {
                     ps.executeUpdate();
                 }
-                // delete sections
                 try (PreparedStatement ps = c.prepareStatement("DELETE FROM sections")) {
                     ps.executeUpdate();
                 }
-                // delete courses
                 try (PreparedStatement ps = c.prepareStatement("DELETE FROM courses")) {
                     ps.executeUpdate();
                 }
@@ -394,9 +340,6 @@ public class AdminService {
         }
     }
 
-    /**
-     * Verify current password for the session's user.
-     */
     public boolean verifyCurrentPassword(Session s, String oldPassword) throws SQLException {
         String sql = "SELECT password_hash FROM users_auth WHERE user_id = ?";
         try (Connection c = AuthDb.get(); PreparedStatement ps = c.prepareStatement(sql)) {
@@ -411,9 +354,6 @@ public class AdminService {
         return false;
     }
 
-    /**
-     * Change password for the session's user.
-     */
     public void changePassword(Session s, String newPassword) throws SQLException {
         AccessControl.mustBeAdmin(s);
         String newHash = edu.univ.erp.auth.PasswordHasher.hash(newPassword);

@@ -18,11 +18,9 @@ public class AdminDashboard extends JFrame {
     private final MaintenanceService maintenance = new MaintenanceService();
     private final JTabbedPane tabs;
     private final JTable tblCatalog = new JTable();
-    // shared UI components for live refresh
     private final JComboBox<String> cbInstForSection = new JComboBox<>();
     private final JComboBox<String> cbDeleteInstructor = new JComboBox<>();
     private final JTable tblSections = new JTable();
-    // shared combo boxes so they can be refreshed when courses change
     private final JComboBox<String> cbDeleteCourse = new JComboBox<>();
     private final JComboBox<String> cbCourseForSection = new JComboBox<>();
 
@@ -33,7 +31,6 @@ public class AdminDashboard extends JFrame {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        // Top header similar to student dashboard
         JPanel topBar = new JPanel(new BorderLayout());
         topBar.setBackground(new Color(41, 128, 185));
         topBar.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
@@ -49,7 +46,6 @@ public class AdminDashboard extends JFrame {
         lblSub.setForeground(new Color(200, 230, 250));
         left.add(lblSub);
 
-        // Logout button on right
         JButton btnLogout = new JButton("Logout");
         btnLogout.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         btnLogout.setBackground(new Color(244, 81, 30));
@@ -76,7 +72,6 @@ public class AdminDashboard extends JFrame {
         main.add(topBar, BorderLayout.NORTH);
         main.add(tabs, BorderLayout.CENTER);
         add(main);
-        // Ensure sections list is populated on startup
         refreshSections();
     }
 
@@ -86,7 +81,6 @@ public class AdminDashboard extends JFrame {
         grid.setOpaque(false);
         grid.setBorder(new EmptyBorder(8, 8, 8, 8));
 
-        // Header similar to Student dashboard: title + short description
         JPanel header = new JPanel(new BorderLayout());
         header.setBorder(new EmptyBorder(10, 20, 0, 20));
         JLabel title = Ui.createLabelBold("Admin Dashboard");
@@ -98,7 +92,6 @@ public class AdminDashboard extends JFrame {
         p.add(header, BorderLayout.NORTH);
 
         java.util.function.Consumer<String> openTab = (name) -> {
-            // select the tab in the dashboard's tab pane by title
             if (AdminDashboard.this.tabs == null)
                 return;
             for (int i = 0; i < AdminDashboard.this.tabs.getTabCount(); i++) {
@@ -109,9 +102,6 @@ public class AdminDashboard extends JFrame {
             }
         };
 
-        // Admin-focused tiles (Create/Edit Users, Create/Edit Courses, Create
-        // Sections, Maintenance, Catalog, Settings) - make them smaller and
-        // contained in a white card for a cleaner look
         JButton bUsers = Ui.tileButton("Create/Edit Users", () -> openTab.accept("Users"));
         JButton bCourses = Ui.tileButton("Create/Edit Courses", () -> openTab.accept("Courses"));
         JButton bSections = Ui.tileButton("Create Sections", () -> openTab.accept("Sections"));
@@ -119,7 +109,6 @@ public class AdminDashboard extends JFrame {
         JButton bCatalog = Ui.tileButton("Catalog", () -> openTab.accept("Catalog"));
         JButton bSettings = Ui.tileButton("Settings", this::showChangePasswordDialog);
 
-        // reduce size for admin landing compact layout
         Dimension smallTile = new Dimension(140, 84);
         bUsers.setPreferredSize(smallTile);
         bCourses.setPreferredSize(smallTile);
@@ -135,14 +124,12 @@ public class AdminDashboard extends JFrame {
         grid.add(bCatalog);
         grid.add(bSettings);
 
-        // Put tiles inside a white card with padding and a subtle border
         JPanel card = Ui.createPanel(new BorderLayout(), Color.WHITE);
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(0, 0, 0, 30), 1),
                 new EmptyBorder(18, 18, 18, 18)));
         card.add(grid, BorderLayout.CENTER);
 
-        // Center the card and add slight margin from header
         JPanel centerWrap = new JPanel(new GridBagLayout());
         centerWrap.setBackground(Ui.BG_LIGHT);
         centerWrap.add(card);
@@ -202,7 +189,6 @@ public class AdminDashboard extends JFrame {
                     Ui.msgError(d, "Current password incorrect");
                     return;
                 }
-                // basic validation
                 if (n.length() < 8) {
                     Ui.msgError(d, "Password must be at least 8 characters");
                     return;
@@ -279,7 +265,6 @@ public class AdminDashboard extends JFrame {
                     refreshCourseDropdowns();
                 } catch (SQLException ignored) {
                 }
-                // also refresh sections table so new course shows up immediately
                 refreshSections();
             } catch (Exception ex) {
                 Ui.msgError(d, ex.getMessage());
@@ -376,8 +361,6 @@ public class AdminDashboard extends JFrame {
         JTextField txtProgram = Ui.createTextField(15);
         form.add(txtProgram, gbc);
 
-        // Year removed from admin user creation form (use default year when needed)
-
         gbc.gridx = 0;
         gbc.gridy++;
         form.add(Ui.createLabel("Department/Branch:"), gbc);
@@ -406,7 +389,6 @@ public class AdminDashboard extends JFrame {
         JTextField txtAadhar = Ui.createTextField(20);
         form.add(txtAadhar, gbc);
 
-        // Buttons
         gbc.gridx = 0;
         gbc.gridy++;
         gbc.gridwidth = 2;
@@ -427,7 +409,7 @@ public class AdminDashboard extends JFrame {
                 if ("STUDENT".equals(role)) {
                     String roll = txtRoll.getText().trim();
                     String prog = txtProgram.getText().trim();
-                    int year = 1; // default year
+                    int year = 1;
                     if (roll.isEmpty() || prog.isEmpty()) {
                         Ui.msgError(this, "Roll and program required for student");
                         return;
@@ -436,7 +418,6 @@ public class AdminDashboard extends JFrame {
                 } else if ("INSTRUCTOR".equals(role)) {
                     String dept = txtDept.getText().trim();
                     admin.createInstructorProfile(session, newId, dept);
-                    // add to instructor dropdowns immediately so UI reflects new instructor
                     String instLabel = newId + " - " + username;
                     try {
                         cbDeleteInstructor.addItem(instLabel);
@@ -449,7 +430,6 @@ public class AdminDashboard extends JFrame {
                 }
 
                 Ui.msgSuccess(this, "User created with ID: " + newId);
-                // clear form
                 txtUsername.setText("");
                 txtPass.setText("");
                 txtRoll.setText("");
@@ -462,13 +442,11 @@ public class AdminDashboard extends JFrame {
                 Ui.msgError(this, e.getMessage());
             }
         });
-        // Delete instructor control
         gbc.gridy++;
         gbc.gridwidth = 1;
         gbc.anchor = GridBagConstraints.WEST;
         form.add(Ui.createLabel("Delete Instructor:"), gbc);
         gbc.gridx = 1;
-        // use shared delete instructor combo (so it updates live)
         try {
             java.util.Map<Integer, String> inst = admin.getAllInstructors();
             for (java.util.Map.Entry<Integer, String> e : inst.entrySet())
@@ -507,7 +485,6 @@ public class AdminDashboard extends JFrame {
         });
         form.add(btnDeleteInst, gbc);
 
-        // Unassign instructor from all sections (makes deletion possible)
         gbc.gridx = 1;
         JButton btnUnassignInst = Ui.buttonSecondary("Unassign Instructor", () -> {
             String sel = (String) cbDeleteInstructor.getSelectedItem();
@@ -557,7 +534,6 @@ public class AdminDashboard extends JFrame {
         gbc.gridy++;
         form.add(btns, gbc);
 
-        // Pre-fill roll with next user id if possible
         try {
             txtRoll.setText(String.valueOf(admin.nextUserId()));
         } catch (Exception ignored) {
@@ -580,16 +556,12 @@ public class AdminDashboard extends JFrame {
         inputPanel.add(lbl);
         inputPanel.add(Box.createHorizontalStrut(20));
         inputPanel.add(btnCreateDialog);
-        // Delete course controls (uses shared field combo so it can be refreshed)
         try {
             java.util.List<edu.univ.erp.domain.Course> courses = catalog.getAllCourses();
             for (edu.univ.erp.domain.Course c : courses)
                 cbDeleteCourse.addItem(c.code + " (id=" + c.courseId + ")");
         } catch (Exception ignored) {
         }
-        // NOTE: bulk Delete Sections button removed from Courses panel; individual
-        // section deletion is available in the Sections panel for safety and direct
-        // selection.
         JButton btnDeleteCourse = Ui.buttonSecondary("Delete Course", () -> {
             String sel = (String) cbDeleteCourse.getSelectedItem();
             if (sel == null) {
@@ -643,7 +615,6 @@ public class AdminDashboard extends JFrame {
 
         JLabel lbl = Ui.createLabelBold("Create New Section");
         JLabel lbl1 = Ui.createLabel("Course ID:");
-        // use shared combo so it can be refreshed when courses change
         JComboBox<String> cbCourse = cbCourseForSection;
         JLabel lbl2 = Ui.createLabel("Instructor ID:");
         JComboBox<String> cbInst = cbInstForSection;
@@ -656,7 +627,6 @@ public class AdminDashboard extends JFrame {
         JLabel lbl5 = Ui.createLabel("Capacity:");
         JSpinner spnCap = new JSpinner(new SpinnerNumberModel(40, 10, 100, 1));
 
-        // Populate course and instructor dropdowns
         JButton[] btnCreateHolder = new JButton[1];
         java.util.Map<String, Integer> codeToId = new java.util.HashMap<>();
         java.util.Map<String, Integer> instLabelToId = new java.util.HashMap<>();
@@ -681,7 +651,6 @@ public class AdminDashboard extends JFrame {
                         Ui.msgError(this, "Select course and instructor");
                         return;
                     }
-                    // Resolve courseId from fresh course list to avoid stale map
                     Integer courseId = null;
                     try {
                         java.util.List<edu.univ.erp.domain.Course> fresh = catalog.getAllCourses();
@@ -700,8 +669,6 @@ public class AdminDashboard extends JFrame {
                         return;
                     }
 
-                    // Parse instructor id from label like "3 - inst1" (shared combo uses this
-                    // format)
                     Integer instId = null;
                     try {
                         if (selInstLabel != null && selInstLabel.contains(" - ")) {
@@ -738,7 +705,6 @@ public class AdminDashboard extends JFrame {
                 }
             });
         } catch (Exception ex) {
-            // ignore populate errors; still show panel
             System.err.println("Failed to populate course/inst dropdowns: " + ex.getMessage());
             btnCreateHolder[0] = Ui.button("Create Section",
                     () -> Ui.msgError(this, "Cannot create section: data loading failed"));
@@ -758,14 +724,10 @@ public class AdminDashboard extends JFrame {
         leftFields.add(txtRoom);
         leftFields.add(lbl5);
         leftFields.add(spnCap);
-        // Group action buttons into a right-aligned actions panel so they are
-        // fully visible and don't get truncated by wrapping in the input flow.
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         actions.setOpaque(false);
         actions.add(btnCreateHolder[0]);
 
-        // Add a Delete Selected Section button so admin can remove a specific
-        // section shown in the sections table (select row then click delete)
         JButton btnDeleteSelected = Ui.buttonSecondary("Delete Selected Section", () -> {
             int row = tblSections.getSelectedRow();
             if (row == -1) {
@@ -879,13 +841,11 @@ public class AdminDashboard extends JFrame {
     }
 
     private void refreshCourseDropdowns() throws SQLException {
-        // refresh delete-dropdown
         cbDeleteCourse.removeAllItems();
         java.util.List<edu.univ.erp.domain.Course> courses = catalog.getAllCourses();
         for (edu.univ.erp.domain.Course c : courses) {
             cbDeleteCourse.addItem(c.code + " (id=" + c.courseId + ")");
         }
-        // refresh section course dropdown
         cbCourseForSection.removeAllItems();
         for (edu.univ.erp.domain.Course c : courses) {
             cbCourseForSection.addItem(c.code);
@@ -903,7 +863,6 @@ public class AdminDashboard extends JFrame {
     private void refreshSections() {
         try {
             javax.swing.table.DefaultTableModel full = catalog.listCatalog();
-            // Filter out rows that represent courses without sections (Section ID empty)
             int cols = full.getColumnCount();
             String[] colNames = new String[cols];
             for (int i = 0; i < cols; i++)
@@ -920,7 +879,7 @@ public class AdminDashboard extends JFrame {
                     continue;
                 String s = idObj.toString().trim();
                 if (s.isEmpty())
-                    continue; // skip course-only row
+                    continue;
                 Object[] row = new Object[cols];
                 for (int c = 0; c < cols; c++)
                     row[c] = full.getValueAt(r, c);

@@ -31,7 +31,6 @@ public class PasswordDebugVerbose {
                     byte[] expected = Base64.getDecoder().decode(dkB64);
                     System.out.println("  salt.len=" + salt.length + " expected.len=" + expected.length);
 
-                    // Compute derived key using same params and the expected test password
                     String testPw = switch (user) {
                         case "admin1" -> "admin123";
                         case "inst1" -> "inst123";
