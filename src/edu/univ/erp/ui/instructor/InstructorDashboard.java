@@ -28,6 +28,8 @@ public class InstructorDashboard extends JFrame {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
+        JPanel mainPanel = new JPanel(new BorderLayout());
+
         JPanel topBar = new JPanel(new BorderLayout());
         topBar.setBackground(new Color(41, 128, 185));
         topBar.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
@@ -43,6 +45,14 @@ public class InstructorDashboard extends JFrame {
         lblSub.setForeground(new Color(200, 230, 250));
         left.add(lblSub);
 
+        JButton btnBack = new JButton("Back to Dashboard");
+        btnBack.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnBack.setBackground(new Color(108, 117, 125));
+        btnBack.setForeground(Color.WHITE);
+        btnBack.setFocusPainted(false);
+        btnBack.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        btnBack.addActionListener(e -> goBackToHome());
+
         JButton btnLogout = new JButton("Logout");
         btnLogout.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         btnLogout.setBackground(new Color(244, 81, 30));
@@ -54,21 +64,36 @@ public class InstructorDashboard extends JFrame {
             new LoginFrame().setVisible(true);
         });
 
-        topBar.add(left, BorderLayout.WEST);
-        topBar.add(btnLogout, BorderLayout.EAST);
+        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        rightPanel.setOpaque(false);
+        rightPanel.add(btnBack);
+        rightPanel.add(btnLogout);
 
-        this.tabs = new JTabbedPane();
-        tabs.add("Dashboard", instructorLandingPanel());
+        topBar.add(left, BorderLayout.WEST);
+        topBar.add(rightPanel, BorderLayout.EAST);
+
+        tabs = new JTabbedPane();
         tabs.add("My Sections", sectionsPanel());
-        tabs.add("Grades", gradesPanel());
+        tabs.add("Manage Grades", gradesPanel());
         tabs.add("Class Stats", statsPanel());
         tabs.add("Settings", settingsPanel());
 
-        JPanel main = new JPanel(new BorderLayout());
-        main.add(topBar, BorderLayout.NORTH);
-        main.add(tabs, BorderLayout.CENTER);
-        add(main);
+        mainPanel.add(topBar, BorderLayout.NORTH);
+        mainPanel.add(tabs, BorderLayout.CENTER);
+
+        add(mainPanel);
         refreshSections();
+    }
+
+    private void goBackToHome() {
+        dispose();
+        new InstructorHome(session).setVisible(true);
+    }
+
+    public void selectTab(int index) {
+        if (tabs != null && index >= 0 && index < tabs.getTabCount()) {
+            tabs.setSelectedIndex(index);
+        }
     }
 
     private void showChangePasswordDialog() {
@@ -166,69 +191,6 @@ public class InstructorDashboard extends JFrame {
         d.pack();
         d.setLocationRelativeTo(this);
         d.setVisible(true);
-    }
-
-    private JPanel instructorLandingPanel() {
-        JPanel p = new JPanel(new BorderLayout());
-        JPanel grid = new JPanel(new GridLayout(2, 3, 16, 16));
-        grid.setOpaque(false);
-        grid.setBorder(new EmptyBorder(8, 8, 8, 8));
-
-        java.util.function.Consumer<String> openTab = (name) -> {
-            if (InstructorDashboard.this.tabs == null)
-                return;
-            for (int i = 0; i < InstructorDashboard.this.tabs.getTabCount(); i++) {
-                if (InstructorDashboard.this.tabs.getTitleAt(i).equalsIgnoreCase(name)) {
-                    InstructorDashboard.this.tabs.setSelectedIndex(i);
-                    return;
-                }
-            }
-        };
-
-        JButton bSections = Ui.tileButton("My Sections", () -> openTab.accept("My Sections"));
-        JButton bGrades = Ui.tileButton("Grades", () -> openTab.accept("Grades"));
-        JButton bStats = Ui.tileButton("Class Stats", () -> openTab.accept("Class Stats"));
-        JButton bImport = Ui.tileButton("Import Grades", () -> openTab.accept("Grades"));
-        JButton bExport = Ui.tileButton("Export Grades", () -> openTab.accept("Grades"));
-        JButton bSettings = Ui.tileButton("Settings", () -> openTab.accept("Settings"));
-
-        Dimension smallTile = new Dimension(140, 84);
-        bSections.setPreferredSize(smallTile);
-        bGrades.setPreferredSize(smallTile);
-        bStats.setPreferredSize(smallTile);
-        bImport.setPreferredSize(smallTile);
-        bExport.setPreferredSize(smallTile);
-        bSettings.setPreferredSize(smallTile);
-
-        grid.add(bSections);
-        grid.add(bGrades);
-        grid.add(bStats);
-        grid.add(bImport);
-        grid.add(bExport);
-        grid.add(bSettings);
-
-        JPanel card = Ui.createPanel(new BorderLayout(), Color.WHITE);
-        card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0, 0, 0, 30), 1),
-                new EmptyBorder(18, 18, 18, 18)));
-        card.add(grid, BorderLayout.CENTER);
-
-        JPanel centerWrap = new JPanel(new GridBagLayout());
-        centerWrap.setBackground(Ui.BG_LIGHT);
-        centerWrap.add(card);
-
-        JPanel header = new JPanel(new BorderLayout());
-        header.setBorder(new EmptyBorder(10, 20, 0, 20));
-        JLabel title = Ui.createLabelBold("Instructor Dashboard");
-        JLabel subtitle = Ui.createLabel("Quick instructor actions");
-        title.setHorizontalAlignment(SwingConstants.LEFT);
-        subtitle.setHorizontalAlignment(SwingConstants.LEFT);
-        header.add(title, BorderLayout.NORTH);
-        header.add(subtitle, BorderLayout.SOUTH);
-
-        p.add(header, BorderLayout.NORTH);
-        p.add(centerWrap, BorderLayout.CENTER);
-        return p;
     }
 
     private JPanel sectionsPanel() {

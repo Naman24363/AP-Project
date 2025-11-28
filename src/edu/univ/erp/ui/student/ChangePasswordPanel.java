@@ -16,9 +16,15 @@ public class ChangePasswordPanel extends JPanel {
     private final JPasswordField pfOldPassword;
     private final JPasswordField pfNewPassword;
     private final JPasswordField pfConfirmPassword;
+    private StudentDashboard dashboardParent;
 
     public ChangePasswordPanel(Session s) {
+        this(s, null);
+    }
+
+    public ChangePasswordPanel(Session s, StudentDashboard dashboardParent) {
         this.session = s;
+        this.dashboardParent = dashboardParent;
         setLayout(new BorderLayout());
         setBackground(Ui.BG_LIGHT);
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
@@ -63,23 +69,31 @@ public class ChangePasswordPanel extends JPanel {
         buttonPanel.setOpaque(false);
 
         JButton btnChange = Ui.button("Change Password", this::changePassword);
-        JButton btnDashboard = Ui.buttonSecondary("Go to Dashboard", () -> {
-            JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            if (frame != null) {
-                frame.dispose();
-                new StudentHome(session).setVisible(true);
+        JButton btnBack = Ui.buttonSecondary("Back to Dashboard", () -> {
+            if (dashboardParent != null) {
+                dashboardParent.selectTab(4);
+            } else {
+                JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
+                if (frame != null) {
+                    frame.dispose();
+                    new StudentHome(session).setVisible(true);
+                }
             }
         });
         JButton btnCancel = Ui.buttonSecondary("Cancel", () -> {
-            JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            if (frame != null) {
-                frame.dispose();
-                new StudentHome(session).setVisible(true);
+            if (dashboardParent != null) {
+                dashboardParent.selectTab(0);
+            } else {
+                JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
+                if (frame != null) {
+                    frame.dispose();
+                    new StudentHome(session).setVisible(true);
+                }
             }
         });
 
         buttonPanel.add(btnChange);
-        buttonPanel.add(btnDashboard);
+        buttonPanel.add(btnBack);
         buttonPanel.add(btnCancel);
         contentPanel.add(buttonPanel);
 
@@ -130,15 +144,17 @@ public class ChangePasswordPanel extends JPanel {
             pfNewPassword.setText("");
             pfConfirmPassword.setText("");
 
-            Timer timer = new Timer(1500, e -> {
-                JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
-                if (frame != null) {
-                    frame.dispose();
-                    new StudentHome(session).setVisible(true);
-                }
-            });
-            timer.setRepeats(false);
-            timer.start();
+            if (dashboardParent == null) {
+                Timer timer = new Timer(1500, e -> {
+                    JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
+                    if (frame != null) {
+                        frame.dispose();
+                        new StudentHome(session).setVisible(true);
+                    }
+                });
+                timer.setRepeats(false);
+                timer.start();
+            }
 
         } catch (SQLException e) {
             Ui.msgError(this, "Database error: " + e.getMessage());

@@ -3,9 +3,9 @@ package edu.univ.erp.ui.auth;
 import edu.univ.erp.auth.AuthService;
 import edu.univ.erp.auth.LoginAttemptTracker;
 import edu.univ.erp.auth.Session;
-import edu.univ.erp.ui.admin.AdminDashboard;
+import edu.univ.erp.ui.admin.AdminHome;
 import edu.univ.erp.ui.common.MaintenanceBanner;
-import edu.univ.erp.ui.instructor.InstructorDashboard;
+import edu.univ.erp.ui.instructor.InstructorHome;
 import edu.univ.erp.ui.student.StudentHome;
 import edu.univ.erp.util.Ui;
 import java.awt.*;
@@ -241,8 +241,8 @@ public class LoginFrame extends JFrame {
 
             JFrame dash = switch (s.role) {
                 case "STUDENT" -> new StudentHome(s);
-                case "INSTRUCTOR" -> new InstructorDashboard(s);
-                default -> new AdminDashboard(s);
+                case "INSTRUCTOR" -> new InstructorHome(s);
+                default -> new AdminHome(s);
             };
 
             dash.setVisible(true);

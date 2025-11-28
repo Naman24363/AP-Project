@@ -43,6 +43,14 @@ public class StudentDashboard extends JFrame {
         lblSub.setForeground(new Color(200, 230, 250));
         left.add(lblSub);
 
+        JButton btnBack = new JButton("Back to Dashboard");
+        btnBack.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnBack.setBackground(new Color(108, 117, 125));
+        btnBack.setForeground(Color.WHITE);
+        btnBack.setFocusPainted(false);
+        btnBack.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        btnBack.addActionListener(e -> goBackToHome());
+
         JButton btnLogout = new JButton("Logout");
         btnLogout.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         btnLogout.setBackground(new Color(244, 81, 30));
@@ -54,16 +62,21 @@ public class StudentDashboard extends JFrame {
             new edu.univ.erp.ui.auth.LoginFrame().setVisible(true);
         });
 
-        topBar.add(left, BorderLayout.WEST);
-        topBar.add(btnLogout, BorderLayout.EAST);
+        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        rightPanel.setOpaque(false);
+        rightPanel.add(btnBack);
+        rightPanel.add(btnLogout);
 
-        timetablePanel = new TimetablePanel(s);
+        topBar.add(left, BorderLayout.WEST);
+        topBar.add(rightPanel, BorderLayout.EAST);
+
+        timetablePanel = new TimetablePanel(s, this);
         tabs = new JTabbedPane();
         tabs.add("Catalog", catalogPanel());
         tabs.add("My Registrations", regsPanel());
         tabs.add("Timetable", timetablePanel);
         tabs.add("View Grades", transcriptPanel());
-        tabs.add("Settings", new ChangePasswordPanel(s));
+        tabs.add("Settings", new ChangePasswordPanel(s, this));
 
         mainPanel.add(topBar, BorderLayout.NORTH);
         mainPanel.add(tabs, BorderLayout.CENTER);

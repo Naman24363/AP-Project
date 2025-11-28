@@ -16,6 +16,7 @@ public class TimetablePanel extends JPanel {
     private final Session session;
     private final StudentService studentSvc = new StudentService();
     private JPanel contentPanel;
+    private StudentDashboard dashboardParent;
 
     // Modern color palette
     private static final Color BG_COLOR = new Color(248, 250, 252);
@@ -39,7 +40,12 @@ public class TimetablePanel extends JPanel {
     private static final String[] DAY_ABBREVS = { "mon", "tue", "wed", "thu", "fri", "sat" };
 
     public TimetablePanel(Session session) {
+        this(session, null);
+    }
+
+    public TimetablePanel(Session session, StudentDashboard dashboardParent) {
         this.session = session;
+        this.dashboardParent = dashboardParent;
         setLayout(new BorderLayout());
         setBackground(BG_COLOR);
         setBorder(new EmptyBorder(20, 20, 20, 20));

@@ -16,7 +16,7 @@ public class AdminDashboard extends JFrame {
     private final AdminService admin = new AdminService();
     private final CatalogService catalog = new CatalogService();
     private final MaintenanceService maintenance = new MaintenanceService();
-    private final JTabbedPane tabs;
+    private JTabbedPane tabs;
     private final JTable tblCatalog = new JTable();
     private final JComboBox<String> cbInstForSection = new JComboBox<>();
     private final JComboBox<String> cbDeleteInstructor = new JComboBox<>();
@@ -30,6 +30,8 @@ public class AdminDashboard extends JFrame {
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        JPanel mainPanel = new JPanel(new BorderLayout());
 
         JPanel topBar = new JPanel(new BorderLayout());
         topBar.setBackground(new Color(41, 128, 185));
@@ -46,6 +48,14 @@ public class AdminDashboard extends JFrame {
         lblSub.setForeground(new Color(200, 230, 250));
         left.add(lblSub);
 
+        JButton btnBack = new JButton("Back to Dashboard");
+        btnBack.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnBack.setBackground(new Color(108, 117, 125));
+        btnBack.setForeground(Color.WHITE);
+        btnBack.setFocusPainted(false);
+        btnBack.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        btnBack.addActionListener(e -> goBackToHome());
+
         JButton btnLogout = new JButton("Logout");
         btnLogout.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         btnLogout.setBackground(new Color(244, 81, 30));
@@ -57,90 +67,38 @@ public class AdminDashboard extends JFrame {
             new LoginFrame().setVisible(true);
         });
 
-        topBar.add(left, BorderLayout.WEST);
-        topBar.add(btnLogout, BorderLayout.EAST);
+        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        rightPanel.setOpaque(false);
+        rightPanel.add(btnBack);
+        rightPanel.add(btnLogout);
 
-        this.tabs = new JTabbedPane();
-        tabs.add("Dashboard", adminLandingPanel());
-        tabs.add("Maintenance", maintenancePanel());
+        topBar.add(left, BorderLayout.WEST);
+        topBar.add(rightPanel, BorderLayout.EAST);
+
+        tabs = new JTabbedPane();
         tabs.add("Backup & Restore", backupRestorePanel());
+        tabs.add("Maintenance", maintenancePanel());
         tabs.add("Users", usersPanel());
         tabs.add("Courses", coursesPanel());
         tabs.add("Sections", sectionsPanel());
         tabs.add("Catalog", catalogPanel());
 
-        JPanel main = new JPanel(new BorderLayout());
-        main.add(topBar, BorderLayout.NORTH);
-        main.add(tabs, BorderLayout.CENTER);
-        add(main);
+        mainPanel.add(topBar, BorderLayout.NORTH);
+        mainPanel.add(tabs, BorderLayout.CENTER);
+
+        add(mainPanel);
         refreshSections();
     }
 
-    private JPanel adminLandingPanel() {
-        JPanel p = new JPanel(new BorderLayout());
-        JPanel grid = new JPanel(new GridLayout(2, 4, 16, 16));
-        grid.setOpaque(false);
-        grid.setBorder(new EmptyBorder(8, 8, 8, 8));
+    private void goBackToHome() {
+        dispose();
+        new AdminHome(session).setVisible(true);
+    }
 
-        JPanel header = new JPanel(new BorderLayout());
-        header.setBorder(new EmptyBorder(10, 20, 0, 20));
-        JLabel title = Ui.createLabelBold("Admin Dashboard");
-        JLabel subtitle = Ui.createLabel("Administrative quick actions and management");
-        title.setHorizontalAlignment(SwingConstants.LEFT);
-        subtitle.setHorizontalAlignment(SwingConstants.LEFT);
-        header.add(title, BorderLayout.NORTH);
-        header.add(subtitle, BorderLayout.SOUTH);
-        p.add(header, BorderLayout.NORTH);
-
-        java.util.function.Consumer<String> openTab = (name) -> {
-            if (AdminDashboard.this.tabs == null)
-                return;
-            for (int i = 0; i < AdminDashboard.this.tabs.getTabCount(); i++) {
-                if (AdminDashboard.this.tabs.getTitleAt(i).equalsIgnoreCase(name)) {
-                    AdminDashboard.this.tabs.setSelectedIndex(i);
-                    return;
-                }
-            }
-        };
-
-        JButton bUsers = Ui.tileButton("Create/Edit Users", () -> openTab.accept("Users"));
-        JButton bCourses = Ui.tileButton("Create/Edit Courses", () -> openTab.accept("Courses"));
-        JButton bSections = Ui.tileButton("Create Sections", () -> openTab.accept("Sections"));
-        JButton bMaint = Ui.tileButton("Maintenance", () -> openTab.accept("Maintenance"));
-        JButton bCatalog = Ui.tileButton("Catalog", () -> openTab.accept("Catalog"));
-        JButton bBackup = Ui.tileButton("Backup & Restore", () -> openTab.accept("Backup & Restore"));
-        JButton bSettings = Ui.tileButton("Settings", this::showChangePasswordDialog);
-
-        Dimension smallTile = new Dimension(140, 84);
-        bUsers.setPreferredSize(smallTile);
-        bCourses.setPreferredSize(smallTile);
-        bSections.setPreferredSize(smallTile);
-        bMaint.setPreferredSize(smallTile);
-        bCatalog.setPreferredSize(smallTile);
-        bBackup.setPreferredSize(smallTile);
-        bSettings.setPreferredSize(smallTile);
-
-        grid.add(bUsers);
-        grid.add(bCourses);
-        grid.add(bSections);
-        grid.add(bMaint);
-        grid.add(bCatalog);
-        grid.add(bBackup);
-        grid.add(bSettings);
-
-        JPanel card = Ui.createPanel(new BorderLayout(), Color.WHITE);
-        card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0, 0, 0, 30), 1),
-                new EmptyBorder(18, 18, 18, 18)));
-        card.add(grid, BorderLayout.CENTER);
-
-        JPanel centerWrap = new JPanel(new GridBagLayout());
-        centerWrap.setBackground(Ui.BG_LIGHT);
-        centerWrap.add(card);
-
-        p.add(centerWrap, BorderLayout.CENTER);
-
-        return p;
+    public void selectTab(int index) {
+        if (tabs != null && index >= 0 && index < tabs.getTabCount()) {
+            tabs.setSelectedIndex(index);
+        }
     }
 
     private void showChangePasswordDialog() {
