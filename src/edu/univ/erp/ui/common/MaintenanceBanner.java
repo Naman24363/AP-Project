@@ -10,16 +10,16 @@ public class MaintenanceBanner extends JPanel {
 
     public MaintenanceBanner() {
         setLayout(new BorderLayout(10, 0));
-        setBackground(new Color(255, 193, 7));
-        setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+        setBackground(new Color(255, 152, 0));
+        setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
 
-        iconLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        iconLabel.setForeground(new Color(245, 127, 23));
+        iconLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        iconLabel.setForeground(new Color(255, 255, 255));
         add(iconLabel, BorderLayout.WEST);
 
         label.setHorizontalAlignment(SwingConstants.CENTER);
         label.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        label.setForeground(new Color(33, 33, 33));
+        label.setForeground(Color.WHITE);
         add(label, BorderLayout.CENTER);
 
         refresh();

@@ -30,33 +30,64 @@ public class AdminHome extends JFrame {
     }
 
     private JPanel createHeaderPanel() {
-        JPanel header = new JPanel();
-        header.setBackground(new Color(41, 128, 185));
-        header.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        JPanel header = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // Gradient background with vibrant colors
+                GradientPaint gp = new GradientPaint(0, 0, new Color(25, 118, 210),
+                        getWidth(), getHeight(), new Color(0, 150, 170));
+                g2.setPaint(gp);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+
+                // Subtle accent stripe
+                g2.setColor(new Color(255, 255, 255, 10));
+                g2.fillRect(0, 0, getWidth(), 3);
+                g2.dispose();
+            }
+        };
+        header.setOpaque(false);
+        header.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
         header.setLayout(new BorderLayout());
 
         JLabel titleLabel = new JLabel("Welcome, " + session.username);
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 30));
         titleLabel.setForeground(Color.WHITE);
 
         JLabel subtitleLabel = new JLabel("Admin Dashboard");
-        subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        subtitleLabel.setForeground(new Color(200, 200, 200));
+        subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+        subtitleLabel.setForeground(new Color(220, 230, 240));
 
         JPanel leftPanel = new JPanel();
         leftPanel.setOpaque(false);
         leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
         leftPanel.add(titleLabel);
-        leftPanel.add(Box.createVerticalStrut(5));
+        leftPanel.add(Box.createVerticalStrut(6));
         leftPanel.add(subtitleLabel);
 
         JButton btnLogout = new JButton("Logout");
-        btnLogout.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        btnLogout.setBackground(new Color(231, 76, 60));
+        btnLogout.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnLogout.setBackground(new Color(244, 67, 54));
         btnLogout.setForeground(Color.WHITE);
         btnLogout.setFocusPainted(false);
-        btnLogout.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+        btnLogout.setBorder(BorderFactory.createEmptyBorder(10, 18, 10, 18));
+        btnLogout.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnLogout.addActionListener(e -> logout());
+
+        btnLogout.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                btnLogout.setBackground(new Color(229, 57, 53));
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                btnLogout.setBackground(new Color(244, 67, 54));
+            }
+        });
 
         header.add(leftPanel, BorderLayout.WEST);
         header.add(btnLogout, BorderLayout.EAST);

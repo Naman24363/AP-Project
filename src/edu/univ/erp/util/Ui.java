@@ -9,12 +9,17 @@ public class Ui {
     public static final Color PRIMARY_DARK = new Color(13, 71, 161);
     public static final Color PRIMARY_LIGHT = new Color(66, 165, 245);
     public static final Color ACCENT = new Color(0, 188, 212);
+    public static final Color ACCENT_LIGHT = new Color(77, 208, 225);
     public static final Color SUCCESS = new Color(56, 142, 60);
+    public static final Color SUCCESS_LIGHT = new Color(129, 199, 132);
     public static final Color ERROR = new Color(211, 47, 47);
     public static final Color ERROR_LIGHT = new Color(244, 67, 54);
     public static final Color WARNING = new Color(251, 140, 0);
+    public static final Color WARNING_LIGHT = new Color(255, 152, 0);
+    public static final Color INFO = new Color(0, 172, 193);
     public static final Color BG_LIGHT = new Color(248, 248, 248);
     public static final Color BG_SURFACE = Color.WHITE;
+    public static final Color BG_SECONDARY = new Color(245, 245, 245);
     public static final Color TEXT_DARK = new Color(33, 33, 33);
     public static final Color TEXT_LIGHT = new Color(117, 117, 117);
     public static final Color TEXT_HINT = new Color(189, 189, 189);
@@ -71,10 +76,81 @@ public class Ui {
     }
 
     public static JButton button(String text, Runnable onClick) {
-        JButton b = new JButton(text);
+        JButton b = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                int w = getWidth();
+                int h = getHeight();
+
+                GradientPaint gp = new GradientPaint(0, 0, PRIMARY, 0, h, PRIMARY_DARK);
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setPaint(gp);
+                g2.fillRoundRect(0, 0, w, h, 8, 8);
+
+                // Border
+                g2.setColor(new Color(0, 0, 0, 20));
+                g2.setStroke(new BasicStroke(1f));
+                g2.drawRoundRect(0, 0, Math.max(0, w - 1), Math.max(0, h - 1), 8, 8);
+
+                if (getModel().isPressed()) {
+                    g2.setColor(new Color(0, 0, 0, 40));
+                    g2.fillRoundRect(0, 0, w, h, 8, 8);
+                }
+
+                super.paintComponent(g);
+                g2.dispose();
+            }
+        };
         b.setFont(new Font("Segoe UI", Font.BOLD, 12));
         b.setForeground(Color.WHITE);
-        b.setBackground(PRIMARY);
+        b.setContentAreaFilled(false);
+        b.setOpaque(false);
+        b.setFocusPainted(false);
+        b.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        b.addActionListener(e -> {
+            try {
+                onClick.run();
+            } catch (Exception ex) {
+                JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(b);
+                msgError(topFrame != null ? topFrame : b, ex.getMessage());
+            }
+        });
+
+        return b;
+    }
+
+    public static JButton buttonSecondary(String text, Runnable onClick) {
+        JButton b = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                int w = getWidth();
+                int h = getHeight();
+
+                if (getModel().isArmed()) {
+                    g2.setColor(PRIMARY);
+                } else {
+                    g2.setColor(BG_LIGHT);
+                }
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.fillRoundRect(0, 0, w, h, 8, 8);
+
+                // Border
+                g2.setColor(PRIMARY);
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.drawRoundRect(0, 0, Math.max(0, w - 1), Math.max(0, h - 1), 8, 8);
+
+                super.paintComponent(g);
+                g2.dispose();
+            }
+        };
+        b.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        b.setForeground(PRIMARY);
+        b.setContentAreaFilled(false);
+        b.setOpaque(false);
         b.setFocusPainted(false);
         b.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -91,46 +167,11 @@ public class Ui {
         b.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseEntered(java.awt.event.MouseEvent evt) {
-                b.setBackground(PRIMARY_DARK);
-            }
-
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                b.setBackground(PRIMARY);
-            }
-        });
-
-        return b;
-    }
-
-    public static JButton buttonSecondary(String text, Runnable onClick) {
-        JButton b = new JButton(text);
-        b.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        b.setForeground(PRIMARY);
-        b.setBackground(BG_LIGHT);
-        b.setFocusPainted(false);
-        b.setBorder(BorderFactory.createLineBorder(PRIMARY, 1));
-        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-
-        b.addActionListener(e -> {
-            try {
-                onClick.run();
-            } catch (Exception ex) {
-                JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(b);
-                msgError(topFrame != null ? topFrame : b, ex.getMessage());
-            }
-        });
-
-        b.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                b.setBackground(PRIMARY);
                 b.setForeground(Color.WHITE);
             }
 
             @Override
             public void mouseExited(java.awt.event.MouseEvent evt) {
-                b.setBackground(BG_LIGHT);
                 b.setForeground(PRIMARY);
             }
         });
@@ -139,10 +180,38 @@ public class Ui {
     }
 
     public static JButton buttonDanger(String text, Runnable onClick) {
-        JButton b = new JButton(text);
+        JButton b = new JButton(text) {
+            private static final Color ERR_LIGHT = new Color(244, 67, 54);
+            private static final Color ERR_DARK = new Color(211, 47, 47);
+
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                int w = getWidth();
+                int h = getHeight();
+
+                GradientPaint gp = new GradientPaint(0, 0, ERR_LIGHT, 0, h, ERR_DARK);
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setPaint(gp);
+                g2.fillRoundRect(0, 0, w, h, 8, 8);
+
+                g2.setColor(new Color(0, 0, 0, 20));
+                g2.setStroke(new BasicStroke(1f));
+                g2.drawRoundRect(0, 0, Math.max(0, w - 1), Math.max(0, h - 1), 8, 8);
+
+                if (getModel().isPressed()) {
+                    g2.setColor(new Color(0, 0, 0, 40));
+                    g2.fillRoundRect(0, 0, w, h, 8, 8);
+                }
+
+                super.paintComponent(g);
+                g2.dispose();
+            }
+        };
         b.setFont(new Font("Segoe UI", Font.BOLD, 12));
         b.setForeground(Color.WHITE);
-        b.setBackground(ERROR);
+        b.setContentAreaFilled(false);
+        b.setOpaque(false);
         b.setFocusPainted(false);
         b.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -153,18 +222,6 @@ public class Ui {
             } catch (Exception ex) {
                 JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(b);
                 msgError(topFrame != null ? topFrame : b, ex.getMessage());
-            }
-        });
-
-        b.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                b.setBackground(new Color(229, 57, 53));
-            }
-
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                b.setBackground(ERROR);
             }
         });
 
@@ -172,10 +229,38 @@ public class Ui {
     }
 
     public static JButton buttonSuccess(String text, Runnable onClick) {
-        JButton b = new JButton(text);
+        JButton b = new JButton(text) {
+            private static final Color SUCC_LIGHT = new Color(129, 199, 132);
+            private static final Color SUCC_DARK = new Color(56, 142, 60);
+
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                int w = getWidth();
+                int h = getHeight();
+
+                GradientPaint gp = new GradientPaint(0, 0, SUCC_LIGHT, 0, h, SUCC_DARK);
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setPaint(gp);
+                g2.fillRoundRect(0, 0, w, h, 8, 8);
+
+                g2.setColor(new Color(0, 0, 0, 20));
+                g2.setStroke(new BasicStroke(1f));
+                g2.drawRoundRect(0, 0, Math.max(0, w - 1), Math.max(0, h - 1), 8, 8);
+
+                if (getModel().isPressed()) {
+                    g2.setColor(new Color(0, 0, 0, 40));
+                    g2.fillRoundRect(0, 0, w, h, 8, 8);
+                }
+
+                super.paintComponent(g);
+                g2.dispose();
+            }
+        };
         b.setFont(new Font("Segoe UI", Font.BOLD, 12));
         b.setForeground(Color.WHITE);
-        b.setBackground(SUCCESS);
+        b.setContentAreaFilled(false);
+        b.setOpaque(false);
         b.setFocusPainted(false);
         b.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -186,18 +271,6 @@ public class Ui {
             } catch (Exception ex) {
                 JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(b);
                 msgError(topFrame != null ? topFrame : b, ex.getMessage());
-            }
-        });
-
-        b.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                b.setBackground(new Color(46, 125, 50));
-            }
-
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                b.setBackground(SUCCESS);
             }
         });
 
@@ -206,18 +279,36 @@ public class Ui {
 
     public static JButton tileButton(String text, Runnable onClick) {
         JButton b = new JButton("<html><div style='text-align:center;'><b>" + text + "</b></div></html>") {
+            private int colorIndex = 0;
+            private final Color[] gradientColors = {
+                    PRIMARY_LIGHT, PRIMARY,
+                    ACCENT, ACCENT_LIGHT,
+                    SUCCESS_LIGHT, new Color(56, 142, 60)
+            };
+
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 int w = getWidth();
                 int h = getHeight();
-                GradientPaint gp = new GradientPaint(0, 0, PRIMARY_LIGHT, 0, h, PRIMARY_DARK);
+
+                // Select colors based on button index for variety
+                int colorIdx = (int) (Math.abs(getX() + getY()) / 100) % (gradientColors.length - 1);
+                Color color1 = gradientColors[colorIdx];
+                Color color2 = gradientColors[colorIdx + 1];
+
+                GradientPaint gp = new GradientPaint(0, 0, color1, w, h, color2);
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setPaint(gp);
                 g2.fillRoundRect(0, 0, w, h, 14, 14);
 
+                // Add a subtle border
+                g2.setColor(new Color(0, 0, 0, 30));
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.drawRoundRect(0, 0, Math.max(0, w - 1), Math.max(0, h - 1), 14, 14);
+
                 if (getModel().isPressed()) {
-                    g2.setColor(new Color(0, 0, 0, 40));
+                    g2.setColor(new Color(0, 0, 0, 60));
                     g2.fillRoundRect(0, 0, w, h, 14, 14);
                 }
 
@@ -228,9 +319,7 @@ public class Ui {
         b.setContentAreaFilled(false);
         b.setOpaque(false);
         b.setFocusPainted(false);
-        b.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0, 0, 0, 30), 1),
-                BorderFactory.createEmptyBorder(8, 8, 8, 8)));
+        b.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         b.setPreferredSize(new Dimension(200, 120));
         b.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -260,15 +349,37 @@ public class Ui {
     }
 
     public static JPanel headerPanel(String titleText, String subtitleText) {
-        JPanel header = new JPanel(new BorderLayout());
-        header.setBackground(BG_LIGHT);
-        header.setBorder(new EmptyBorder(12, 20, 12, 20));
+        JPanel header = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // Subtle gradient background
+                GradientPaint gp = new GradientPaint(0, 0, new Color(248, 248, 248),
+                        0, getHeight(), new Color(240, 240, 240));
+                g2.setPaint(gp);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+
+                // Bottom accent line
+                g2.setColor(PRIMARY_LIGHT);
+                g2.setStroke(new BasicStroke(3f));
+                g2.drawLine(0, getHeight() - 3, getWidth(), getHeight() - 3);
+                g2.dispose();
+            }
+        };
+        header.setOpaque(false);
+        header.setBorder(new EmptyBorder(16, 20, 12, 20));
+
         JLabel title = createLabelBold(titleText);
-        title.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        title.setForeground(TEXT_DARK);
+        title.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        title.setForeground(PRIMARY_DARK);
+
         JLabel subtitle = createLabel(subtitleText);
         subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         subtitle.setForeground(TEXT_LIGHT);
+
         header.add(title, BorderLayout.NORTH);
         header.add(subtitle, BorderLayout.SOUTH);
         return header;
@@ -277,6 +388,27 @@ public class Ui {
     public static JPanel createPanel(LayoutManager layout, Color background) {
         JPanel p = new JPanel(layout);
         p.setBackground(background);
+        return p;
+    }
+
+    public static JPanel createCardPanel() {
+        JPanel p = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // Subtle shadow effect
+                g2.setColor(new Color(0, 0, 0, 8));
+                g2.fillRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 8, 8);
+                g2.dispose();
+            }
+        };
+        p.setBackground(Color.WHITE);
+        p.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+                BorderFactory.createEmptyBorder(12, 12, 12, 12)));
         return p;
     }
 
@@ -298,8 +430,10 @@ public class Ui {
         JTextField tf = new JTextField(columns);
         tf.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         tf.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(189, 189, 189), 1),
-                new EmptyBorder(5, 5, 5, 5)));
+                BorderFactory.createLineBorder(new Color(180, 180, 180), 1),
+                new EmptyBorder(6, 8, 6, 8)));
+        tf.setBackground(Color.WHITE);
+        tf.setCaretColor(PRIMARY);
         return tf;
     }
 
@@ -307,24 +441,49 @@ public class Ui {
         JPasswordField pf = new JPasswordField(columns);
         pf.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         pf.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(189, 189, 189), 1),
-                new EmptyBorder(5, 5, 5, 5)));
+                BorderFactory.createLineBorder(new Color(180, 180, 180), 1),
+                new EmptyBorder(6, 8, 6, 8)));
+        pf.setBackground(Color.WHITE);
+        pf.setCaretColor(PRIMARY);
         return pf;
     }
 
     public static void showLoadingDialog(Component parent, String message) {
         JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(parent), "Loading", true);
         dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
-        dialog.setSize(300, 150);
+        dialog.setSize(350, 180);
         dialog.setLocationRelativeTo(parent);
 
-        JPanel p = new JPanel(new BorderLayout());
-        p.setBorder(new EmptyBorder(20, 20, 20, 20));
-        p.setBackground(Color.WHITE);
+        JPanel p = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                GradientPaint gp = new GradientPaint(0, 0, new Color(248, 248, 248),
+                        0, getHeight(), new Color(240, 240, 240));
+                g2.setPaint(gp);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.dispose();
+            }
+        };
+        p.setOpaque(false);
+        p.setBorder(new EmptyBorder(24, 24, 24, 24));
+        p.setLayout(new BorderLayout());
 
         JLabel lbl = new JLabel(message);
-        lbl.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
         lbl.setHorizontalAlignment(SwingConstants.CENTER);
+        lbl.setForeground(TEXT_DARK);
+
+        // Add spinner icon
+        JLabel spinnerLabel = new JLabel("⟳");
+        spinnerLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        spinnerLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        spinnerLabel.setForeground(PRIMARY);
+
+        p.add(spinnerLabel, BorderLayout.NORTH);
         p.add(lbl, BorderLayout.CENTER);
 
         dialog.add(p);
